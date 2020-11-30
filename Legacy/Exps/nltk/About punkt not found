@@ -1,0 +1,5 @@
+in terminal:
+python
+import nltk
+nltk.download()
+choose popular to download, and download to /home/colin/nltk_data

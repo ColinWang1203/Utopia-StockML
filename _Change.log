@@ -1,0 +1,33 @@
+Unfinished:
+
+high priority:
+
+finish the 3 mode in colin and port them to anubis
+
+
+---
+Utopia_winds : first make a huge scrolling bug for titles labeled with date, 
+               then do a one week words predict next week, start by just see the picking the 80% most show word
+               and make a dict for it, ex:
+               model a : {'rise':20, 'good':10, 'OMG':5, ...} => rise_drop_ratio 10
+               model b : {'rise':20, 'best':10, 'holy moly':5, ...} => rise_drop_ratio 20
+               >> now we have a new one
+               model c : {'rise':20, 'best':10, 'OMG':5, ...} => predict this is 50% like model a and b
+               thus the rise_drop_ratio should be 10 * 0.5 + 20 * 0.5 = 15
+Utopia_anubis : measure your strategy for one year, assume latest bb and always buy with end price
+                define the input and output : 
+                input : start_date, n_day_rise, n_day_stay_over_mid, ... (for param tuning)
+                output: [sell apple_num_prev price, buy apple_num_next price] or null if stay still
+                calculate the fortune in addidtion 
+Utopia_lightening : get a line bot, send msg to me (1%=10% cal amount then send)
+                    when a long rised one touch mid or touch low
+                    (or even try to auto buy)
+
+20201102:
+    create mode 4
+
+20201016:
+    try to first click then tab to avoid 6/7 tab issue
+
+20201007:
+    Utopia_colin : modify algo to choose 5 day TML
