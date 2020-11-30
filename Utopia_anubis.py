@@ -98,7 +98,7 @@ Hurricane_THSH = 50
 paradise_dict = {}
 TYPE_THSH = 250
 TYPE_DAY = 5
-Top_mul_days = 20
+Top_mul_days = 5
 Low_mul_days = 5
 Top_mul_days_n_to_n = 15
 Low_mul_days_n_to_n = 20
@@ -435,9 +435,10 @@ def Algo1(day_shift) : # next open is defined as strictly 0900 start
             #     days_rise *= end_top_abs_diff
 
             # bb mid mul
-            for n in range(2,Top_mul_days+2):
-                diff = 1 + ((bb_mid_dict[All_apple_date[-n+1-day_shift]] - bb_mid_dict[All_apple_date[-n-day_shift]]) / bb_mid_dict[All_apple_date[-n-day_shift]])
-                days_rise *= diff
+            # days_rise = 1
+            # for n in range(2,Top_mul_days+2):
+            #     diff = 1 + ((bb_mid_dict[All_apple_date[-n+1-day_shift]] - bb_mid_dict[All_apple_date[-n-day_shift]]) / bb_mid_dict[All_apple_date[-n-day_shift]])
+            #     days_rise *= diff
 
             # bb mid mul n to n
             # top_mul_first = 1
@@ -482,29 +483,34 @@ def Algo1(day_shift) : # next open is defined as strictly 0900 start
 
 
 
-            # mid_in_top_mid =  (bb_top_dict[All_apple_date[-n-day_shift]] - bb_mid_dict[All_apple_date[-n-day_shift]]) * 0.75
-            # for n in range(2,Top_mul_days+2):
-            #     days_rise *= 1 - abs((apple_end_dict[All_apple_date[-n-day_shift]] - mid_in_top_mid)/mid_in_top_mid)
-
-            # decrease the point by each day's highs low var mul
-            # diff_high_low_rate = 1
-            # for n in range(2,Top_mul_days+3):
-            #     diff_high_low = apple_high_dict[All_apple_date[-n+1-day_shift]] - apple_low_dict[All_apple_date[-n+1-day_shift]]
-            #     diff_high_low /= apple_low_dict[All_apple_date[-n+1-day_shift]]
-            #     diff_high_low_rate *= 1-diff_high_low
-            #     P_printl('diff_high_low_rate = '+str(diff_high_low_rate))
-            # days_rise *= diff_high_low_rate
-        
-
-
+            # days_rise = 1
             # for n in range(2,Top_mul_days+2): 
-            #     days_rise *= 1 + ((apple_end_dict[All_apple_date[-n+1-day_shift]] - apple_end_dict[All_apple_date[-n-day_shift]]) / apple_end_dict[All_apple_date[-n-day_shift]])
+            #     diff = apple_end_dict[All_apple_date[-n+1-day_shift]] - apple_end_dict[All_apple_date[-n-day_shift]]
+            #     if apple_end_dict[All_apple_date[-n+1-day_shift]] > bb_top_dict[All_apple_date[-n+1-day_shift]] and diff > 0:
+            #         diff *= -1
+            #     days_rise *= 1+(diff / apple_end_dict[All_apple_date[-n-day_shift]])
+            
+            # days_ago_rate = 1 + (apple_end_dict[-1-day_shift-20] - apple_end_dict[today]) / apple_end_dict[today]
+            # days_rise *= days_ago_rate
 
-            for n in range(2,Top_mul_days+2):
-                diff = 1 + ((bb_mid_dict[All_apple_date[-n+1-day_shift]] - bb_mid_dict[All_apple_date[-n-day_shift]]) / bb_mid_dict[All_apple_date[-n-day_shift]])
-                days_rise *= diff
-                
-            Top_points = round(days_rise * juice_increase_rate * 100 - 100,5)
+
+            days_rise = 1
+            for n in range(1,Top_mul_days+1):
+                mid_in_top_mid =  (bb_top_dict[All_apple_date[-n-day_shift]] - bb_mid_dict[All_apple_date[-n-day_shift]]) * 0.75 + bb_mid_dict[All_apple_date[-n-day_shift]]
+                days_rise *= 1 - abs((apple_end_dict[All_apple_date[-n-day_shift]] - mid_in_top_mid)/mid_in_top_mid)
+            # decrease the point by each day's highs low var mul
+            diff_high_low_rate = 1
+            for n in range(1,Top_mul_days+1):
+                diff_high_low = apple_high_dict[All_apple_date[-n-day_shift]] - apple_low_dict[All_apple_date[-n-day_shift]]
+                diff_high_low /= apple_low_dict[All_apple_date[-n-day_shift]]
+                diff_high_low_rate *= 1-diff_high_low
+            days_rise *= diff_high_low_rate
+            for n in range(2,Top_mul_days+2): 
+                days_rise *= 1 + ((apple_end_dict[All_apple_date[-n+1-day_shift]] - apple_end_dict[All_apple_date[-n-day_shift]]) / apple_end_dict[All_apple_date[-n-day_shift]])
+            
+
+
+            Top_points = round(days_rise * 100 - 100,5)
             P_printl("Top_points = "+str(Top_points)+'%')
 
             top_apple_dict[apple_num] = Top_points
@@ -644,13 +650,31 @@ def Algo1(day_shift) : # next open is defined as strictly 0900 start
             # Low_points = amount_rate_first_second * low_mul_first_second_rate * close_low_rate
 
 
-            days_rise = 1
-            for n in range(2,Low_mul_days+2):
-                diff = 1 + ((bb_mid_dict[All_apple_date[-n+1-day_shift]] - bb_mid_dict[All_apple_date[-n-day_shift]]) / bb_mid_dict[All_apple_date[-n-day_shift]])
-                days_rise *= diff
-            close_low_rate = (bb_low_dict[today]- apple_end_dict[today]) / apple_end_dict[today]
 
-            Low_points = close_low_rate * days_rise
+            # days_rise = 1
+            # for n in range(2,Low_mul_days+2):
+            #     diff = 1 + ((bb_mid_dict[All_apple_date[-n+1-day_shift]] - bb_mid_dict[All_apple_date[-n-day_shift]]) / bb_mid_dict[All_apple_date[-n-day_shift]])
+            #     days_rise *= diff
+            # close_low_rate = 1 + (bb_low_dict[today]- apple_end_dict[today]) / apple_end_dict[today]
+            # days_rise *= close_low_rate
+
+
+            days_rise = 1
+            for n in range(1,Top_mul_days+1):
+                mid_in_mid_low =  (bb_mid_dict[All_apple_date[-n-day_shift]] - bb_low_dict[All_apple_date[-n-day_shift]]) * 0.25 + bb_low_dict[All_apple_date[-n-day_shift]]
+                days_rise *= 1 - abs((apple_end_dict[All_apple_date[-n-day_shift]] - mid_in_mid_low)/mid_in_mid_low)
+            # decrease the point by each day's highs low var mul
+            diff_high_low_rate = 1
+            for n in range(1,Top_mul_days+1):
+                diff_high_low = apple_high_dict[All_apple_date[-n-day_shift]] - apple_low_dict[All_apple_date[-n-day_shift]]
+                diff_high_low /= apple_low_dict[All_apple_date[-n-day_shift]]
+                diff_high_low_rate *= 1-diff_high_low
+            days_rise *= diff_high_low_rate
+            for n in range(2,Top_mul_days+2): 
+                days_rise *= 1 - ((apple_end_dict[All_apple_date[-n+1-day_shift]] - apple_end_dict[All_apple_date[-n-day_shift]]) / apple_end_dict[All_apple_date[-n-day_shift]])
+                
+
+            Low_points = days_rise
 
             P_printl("Low_points = "+str(Low_points))
             low_apple_dict[apple_num] = Low_points
