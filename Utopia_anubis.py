@@ -1,8 +1,5 @@
 from Utopia_tools import *
 
-#@ add amount ratio for top
-#@ second grow low apple fix
-
 #@ pick low for top?
 #@ find a way to discribe the shifting of the seeds and cap it, because a single line to sepearete is poor
 
@@ -128,10 +125,13 @@ replace_mid_to_low = True
 LOW_DAY_IGNORE_HARVEST = 1
 LOW_POINT_BUMPY_LEN = 20
 MIN_RATIO_LOW_LIST_LEN = 0.1
+MIN_RATIO_TOP_LIST_LEN = 0.1
 LOW_POINT_CLOSE_TO_LOW = 0.01
 low_how_close_to_mid_THSH = -0.02
 second_low_grow_date = 'non'
 Low_second_grow_THSH = -0.1
+half_block = {}
+OVER_TOP_THSH = -0.05
 
 def Algo1(day_shift) : # next open is defined as strictly 0900 start
 # note : in reality, the operation is delayed a day, so follow it at next open
@@ -187,6 +187,7 @@ def Algo1(day_shift) : # next open is defined as strictly 0900 start
     global juice_rate_min
     global juice_pow
     global second_low_grow_date
+    global half_block
 
     args = parse_command_line()
     # Top_mul_days_n_to_n = args.para1
@@ -269,8 +270,10 @@ def Algo1(day_shift) : # next open is defined as strictly 0900 start
             print(apple_num+' is a apple with wrong size, ignoring...')
             continue
         if apple_amount_avg * apple_price_avg < MIN_AMOUNT*1000:
-            print(apple_num+" not enough amount, abort")
-            continue
+            # if holding apple, do not exclude it becaues of amount not enough
+            if apple_num != HOLD_APPLE:
+                print(apple_num+" not enough amount, abort")
+                continue
         
         # filter out any massive change that is bigger than 10% in 22 days
         try:
@@ -393,6 +396,13 @@ def Algo1(day_shift) : # next open is defined as strictly 0900 start
                                                     'bb_mid' : bb_mid_dict,
                                                     'bb_low' : bb_low_dict
                                                   }
+        
+        #calculate the half block by seperate the max bb top and min bb low into 5 blocks 
+        #(half block = /10)
+        max_bb_top = max(list(bb_top_dict.values()))
+        min_bb_low = min(list(bb_low_dict.values()))
+        half_block[apple_num] = (max_bb_top - min_bb_low)/10
+
 
         #calculate juice
         juice_dict = {}
@@ -494,23 +504,25 @@ def Algo1(day_shift) : # next open is defined as strictly 0900 start
             # days_rise *= days_ago_rate
 
 
+            # days_rise = 1
+            # for n in range(1,Top_mul_days+1):
+            #     mid_in_top_mid =  (bb_top_dict[All_apple_date[-n-day_shift]] - bb_mid_dict[All_apple_date[-n-day_shift]]) * 0.75 + bb_mid_dict[All_apple_date[-n-day_shift]]
+            #     days_rise *= 1 - abs((apple_end_dict[All_apple_date[-n-day_shift]] - mid_in_top_mid)/mid_in_top_mid)
+            # # decrease the point by each day's highs low var mul
+            # for n in range(1,Top_mul_days+1):
+            #     days_rise *= 1-abs((apple_high_dict[All_apple_date[-n-day_shift]] - apple_low_dict[All_apple_date[-n-day_shift]]) / apple_low_dict[All_apple_date[-n-day_shift]])
+            # # bb mid mul close to 1
+            # for n in range(2,Top_mul_days+2):
+            #     days_rise *= 1 - abs(((bb_mid_dict[All_apple_date[-n+1-day_shift]] - bb_mid_dict[All_apple_date[-n-day_shift]]) / bb_mid_dict[All_apple_date[-n-day_shift]]))
+
+
             days_rise = 1
-            for n in range(1,Top_mul_days+1):
-                mid_in_top_mid =  (bb_top_dict[All_apple_date[-n-day_shift]] - bb_mid_dict[All_apple_date[-n-day_shift]]) * 0.75 + bb_mid_dict[All_apple_date[-n-day_shift]]
-                days_rise *= 1 - abs((apple_end_dict[All_apple_date[-n-day_shift]] - mid_in_top_mid)/mid_in_top_mid)
-            # decrease the point by each day's highs low var mul
-            diff_high_low_rate = 1
-            for n in range(1,Top_mul_days+1):
-                diff_high_low = apple_high_dict[All_apple_date[-n-day_shift]] - apple_low_dict[All_apple_date[-n-day_shift]]
-                diff_high_low /= apple_low_dict[All_apple_date[-n-day_shift]]
-                diff_high_low_rate *= 1-diff_high_low
-            days_rise *= diff_high_low_rate
-            for n in range(2,Top_mul_days+2): 
+            # for n in range(2,5+2):
+            #     days_rise *= 1 - (((bb_mid_dict[All_apple_date[-n+1-day_shift]] - bb_mid_dict[All_apple_date[-n-day_shift]]) / bb_mid_dict[All_apple_date[-n-day_shift]]))
+            for n in range(2,3+2):
                 days_rise *= 1 + ((apple_end_dict[All_apple_date[-n+1-day_shift]] - apple_end_dict[All_apple_date[-n-day_shift]]) / apple_end_dict[All_apple_date[-n-day_shift]])
-            
 
-
-            Top_points = round(days_rise * 100 - 100,5)
+            Top_points = round(days_rise * 100,5)
             P_printl("Top_points = "+str(Top_points)+'%')
 
             top_apple_dict[apple_num] = Top_points
@@ -659,22 +671,25 @@ def Algo1(day_shift) : # next open is defined as strictly 0900 start
             # days_rise *= close_low_rate
 
 
-            days_rise = 1
-            for n in range(1,Top_mul_days+1):
-                mid_in_mid_low =  (bb_mid_dict[All_apple_date[-n-day_shift]] - bb_low_dict[All_apple_date[-n-day_shift]]) * 0.25 + bb_low_dict[All_apple_date[-n-day_shift]]
-                days_rise *= 1 - abs((apple_end_dict[All_apple_date[-n-day_shift]] - mid_in_mid_low)/mid_in_mid_low)
-            # decrease the point by each day's highs low var mul
-            diff_high_low_rate = 1
-            for n in range(1,Top_mul_days+1):
-                diff_high_low = apple_high_dict[All_apple_date[-n-day_shift]] - apple_low_dict[All_apple_date[-n-day_shift]]
-                diff_high_low /= apple_low_dict[All_apple_date[-n-day_shift]]
-                diff_high_low_rate *= 1-diff_high_low
-            days_rise *= diff_high_low_rate
-            for n in range(2,Top_mul_days+2): 
-                days_rise *= 1 - ((apple_end_dict[All_apple_date[-n+1-day_shift]] - apple_end_dict[All_apple_date[-n-day_shift]]) / apple_end_dict[All_apple_date[-n-day_shift]])
-                
+            # days_rise = 1
+            # for n in range(1,Low_mul_days+1):
+            #     mid_in_mid_low =  (bb_mid_dict[All_apple_date[-n-day_shift]] - bb_low_dict[All_apple_date[-n-day_shift]]) * 0.25 + bb_low_dict[All_apple_date[-n-day_shift]]
+            #     days_rise *= 1 - abs((apple_end_dict[All_apple_date[-n-day_shift]] - mid_in_mid_low)/mid_in_mid_low)
+            # # decrease the point by each day's highs low var mul
+            # for n in range(1,Low_mul_days+1):
+            #     days_rise *= 1 - abs((apple_high_dict[All_apple_date[-n-day_shift]] - apple_low_dict[All_apple_date[-n-day_shift]]) / apple_low_dict[All_apple_date[-n-day_shift]])
+            # # bb mid mul close to 1
+            # for n in range(2,Low_mul_days+2):
+            #     days_rise *= 1 - abs(((bb_mid_dict[All_apple_date[-n+1-day_shift]] - bb_mid_dict[All_apple_date[-n-day_shift]]) / bb_mid_dict[All_apple_date[-n-day_shift]]))
 
-            Low_points = days_rise
+
+            days_rise = 1
+            for n in range(2+5,5+2+5+10):
+                days_rise *= 1 + (((bb_mid_dict[All_apple_date[-n+1-day_shift]] - bb_mid_dict[All_apple_date[-n-day_shift]]) / bb_mid_dict[All_apple_date[-n-day_shift]]))
+            for n in range(2,Low_mul_days+2):
+                days_rise *= 1 - ((apple_end_dict[All_apple_date[-n+1-day_shift]] - apple_end_dict[All_apple_date[-n-day_shift]]) / apple_end_dict[All_apple_date[-n-day_shift]])
+
+            Low_points = round(days_rise * 100,5)
 
             P_printl("Low_points = "+str(Low_points))
             low_apple_dict[apple_num] = Low_points
@@ -720,7 +735,7 @@ def Algo1(day_shift) : # next open is defined as strictly 0900 start
             result_mid = result_top = 0
             result_mid_ratio = result_top_ratio = 0
         else:
-            if len(top_result_list) > 0:
+            if len(top_result_list)/available_apple_amount > MIN_RATIO_TOP_LIST_LEN:
                 result_top += 1
                 result_top_ratio += (len(top_result_list) / available_apple_amount * 100)
                 result_mid = result_low = 0
@@ -1048,8 +1063,17 @@ def Algo1(day_shift) : # next open is defined as strictly 0900 start
         #             return
 
         if after_touch_apple_day >= 5:
-            over_mid_rate = (apple_price_today - bb_mid_today) / bb_mid_today
-            if ((apple_price_today - bb_top_today)/bb_top_today < SECOND_GROW_TOP_GROW_THSH_5_DAY) or (over_mid_rate < TOP_OVER_MID_RATE):
+            # over_mid_rate = (apple_price_today - bb_mid_today) / bb_mid_today
+            # if ((apple_price_today - bb_top_today)/bb_top_today < SECOND_GROW_TOP_GROW_THSH_5_DAY) or (over_mid_rate < TOP_OVER_MID_RATE):
+            # print('colin3')
+            # print(today)
+            # print(All_good_apple_price_bb_dict[HOLD_APPLE]['high'][today])
+            # print(half_block[HOLD_APPLE])
+            # P()
+            is_over_half_block = All_good_apple_price_bb_dict[HOLD_APPLE]['bb_top'][today] - All_good_apple_price_bb_dict[HOLD_APPLE]['high'][today] > half_block[HOLD_APPLE]
+            grow_length = All_apple_date.index(today) - All_apple_date.index(grow_date)
+            is_over_top_thsh_in_22_or_over_22 = ((apple_price_today - hold_apple_price)/hold_apple_price < OVER_TOP_THSH and grow_length < 22) or grow_length >= 22
+            if is_over_half_block and is_over_top_thsh_in_22_or_over_22:
                 # if not second_grow:
                 #     # second grow
                 #     P_printl('5 days end SECOND_GROW_TOP_GROW_THSH_5_DAY lower top or over mid, second grow it',1)
@@ -1066,7 +1090,7 @@ def Algo1(day_shift) : # next open is defined as strictly 0900 start
                 sql_cursor_Database_squeeze_name.execute("SELECT starts FROM "+HOLD_APPLE+" WHERE date LIKE "+next_date+"")
                 harvest_apple_price = sql_cursor_Database_squeeze_name.fetchall()[0][0]
                 price_diff_rate = (harvest_apple_price - hold_apple_price) / hold_apple_price
-                grow_length = All_apple_date.index(today) - All_apple_date.index(grow_date)
+
                 if hold_apple_type == 1:
                     paradise_top_result_dict[today] = (HOLD_APPLE, grow_date, today, grow_length, round(price_diff_rate*100))
                 if hold_apple_type == 2:
@@ -1185,7 +1209,8 @@ def Algo1(day_shift) : # next open is defined as strictly 0900 start
         sql_cursor_Database_squeeze_name.execute("SELECT ends FROM "+HOLD_APPLE+" WHERE date LIKE "+All_apple_date[-(day_shift+2)]+"")
         hold_apple_price_ends_yesterday = sql_cursor_Database_squeeze_name.fetchall()[0][0]
         is_today_lower_than_yesterday = hold_apple_price_ends_today < hold_apple_price_ends_yesterday
-        if (low_how_close_to_mid > low_how_close_to_mid_THSH and grow_length > LOW_DAY_IGNORE_HARVEST and is_today_lower_than_yesterday) or after_touch_apple_day >= 22 :
+        # if (low_how_close_to_mid > low_how_close_to_mid_THSH and grow_length > LOW_DAY_IGNORE_HARVEST and is_today_lower_than_yesterday) or after_touch_apple_day >= 22 :
+        if (All_good_apple_price_bb_dict[HOLD_APPLE]['end'][today] > All_good_apple_price_bb_dict[HOLD_APPLE]['bb_mid'][today] and grow_length > LOW_DAY_IGNORE_HARVEST and is_today_lower_than_yesterday) or after_touch_apple_day >= 22 :
             # harvest
             sql_cursor_Database_squeeze_name.execute("SELECT starts FROM "+HOLD_APPLE+" WHERE date LIKE "+next_date+"")
             harvest_apple_price = sql_cursor_Database_squeeze_name.fetchall()[0][0]
@@ -1257,7 +1282,7 @@ def Algo1(day_shift) : # next open is defined as strictly 0900 start
 
 def main():
     start_time = time()  
-    start_len_shift = 182
+    start_len_shift = 200
     start_day_shift = len(All_apple_date) - start_len_shift
     end_day_shift = 0
     

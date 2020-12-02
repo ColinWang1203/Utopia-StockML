@@ -23,6 +23,7 @@ from matplotlib import font_manager
 # ===============================================================
 
 def P():
+    P_switch_back_to_utopia_window()
     sys.exit()
 
 def P_user_yn_confirm(_check_msg):
@@ -251,3 +252,4 @@ def P_switch_back_to_utopia_window():
     os.system("wmctrl -R Utopia_colin.py - Visual Studio Code")
     os.system("wmctrl -R Utopia_anubis.py - Visual Studio Code")
     os.system("wmctrl -R Utopia.py - Visual Studio Code")
+    os.system("wmctrl -R Utopia_tools.py - Visual Studio Code")
