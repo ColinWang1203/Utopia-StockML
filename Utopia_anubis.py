@@ -1210,10 +1210,11 @@ def Algo1(day_shift) : # next open is defined as strictly 0900 start
         hold_apple_price_ends_yesterday = sql_cursor_Database_squeeze_name.fetchall()[0][0]
         is_today_lower_than_yesterday = hold_apple_price_ends_today < hold_apple_price_ends_yesterday
         # if (low_how_close_to_mid > low_how_close_to_mid_THSH and grow_length > LOW_DAY_IGNORE_HARVEST and is_today_lower_than_yesterday) or after_touch_apple_day >= 22 :
-        if (All_good_apple_price_bb_dict[HOLD_APPLE]['end'][today] > All_good_apple_price_bb_dict[HOLD_APPLE]['bb_mid'][today] and grow_length > LOW_DAY_IGNORE_HARVEST and is_today_lower_than_yesterday) or after_touch_apple_day >= 22 :
-            # harvest
-            sql_cursor_Database_squeeze_name.execute("SELECT starts FROM "+HOLD_APPLE+" WHERE date LIKE "+next_date+"")
-            harvest_apple_price = sql_cursor_Database_squeeze_name.fetchall()[0][0]
+        if (low_how_close_to_mid > low_how_close_to_mid_THSH and grow_length > LOW_DAY_IGNORE_HARVEST) or after_touch_apple_day >= 22 :
+            # harvest low by hanging apple
+            # sql_cursor_Database_squeeze_name.execute("SELECT starts FROM "+HOLD_APPLE+" WHERE date LIKE "+next_date+"")
+            # harvest_apple_price = sql_cursor_Database_squeeze_name.fetchall()[0][0]
+            harvest_apple_price = All_good_apple_price_bb_dict[HOLD_APPLE]['bb_mid'][today] * (1+low_how_close_to_mid_THSH)
             price_diff_rate = (harvest_apple_price - hold_apple_price) / hold_apple_price
             if not second_grow:
                 price_diff_rate = price_diff_rate / 2 # if not second grow, only half in
