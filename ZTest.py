@@ -1,13 +1,8 @@
 from Utopia_tools import *
 
-a = '123'
-b= [1,2,3]
-c = {}
-c[1] = 2
-c[2] = 3
-P_printl(a)
-P_printl(b)
-P_printl(c)
+a={'1':[12,2,35],'2':[7,88,98],'3':[334,85,6]}
+a=dict(sorted(a.items(), key=lambda item: item[1][-1]))
+print(a)
 #=========================================================================================================
 
 # def find(s1, s2, paragraphs, cross_line = True):

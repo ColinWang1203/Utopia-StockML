@@ -1,11 +1,7 @@
 from Utopia_tools import *
 
-#@ grow everyday and record the top mid low avil point > paradise
-#@ change to grow every day and record them
-#@ also remove hurri
-
-#@ pick low for top?
-#@ find a way to discribe the shifting of the seeds and cap it, because a single line to sepearete is poor
+#@ do not just pick the rate by harvest day / grow length, need to get every day paradise then avg them
+#@ use round to simplify most of the claculations
 
 P_enable_logging()
 #@ find max paradise apples and analyze
@@ -459,7 +455,7 @@ def Algo1(day_shift) : # next open is defined as strictly 0900 start
             P_printl(apple_num+" is an top apple!")
 
             days_rise = 1
-            for n in range(1,20+1):
+            for n in range(1,22+1):
                 days_rise *= 1 + ((bb_mid_dict[All_apple_date[-n-day_shift]] - bb_mid_dict[All_apple_date[-n-1-day_shift]]) / bb_mid_dict[All_apple_date[-n-1-day_shift]])
             days_rise *= pow(1 - (bb_top_dict[All_apple_date[-1-day_shift]] - bb_low_dict[All_apple_date[-1-day_shift]])/bb_low_dict[All_apple_date[-1-day_shift]],1)
 
@@ -526,13 +522,25 @@ def Algo1(day_shift) : # next open is defined as strictly 0900 start
     P_printl('RESULT_LEN_LIST = '+str(RESULT_LEN_LIST))
 
     P_printl('today is'+today,2,1)
-    for hold_apple_date in HOLD_APPLE_dict:
-        print('Currently holding apple : '+str(HOLD_APPLE_dict[hold_apple_date]))
+    # for hold_apple_date in HOLD_APPLE_dict:
+    #     print('Currently holding apple : '+str(HOLD_APPLE_dict[hold_apple_date]))
     # gather the dict by date, but not apple_num
 
     # harvest first to prevent harvest at growing
 
     # iterate though index in all the hold apples and see if harvest them
+
+    P_printl('HOLD_APPLE_dict :',3)
+    HOLD_APPLE_dict = dict(sorted(HOLD_APPLE_dict.items(), key=lambda item: item[1][-1], reverse=True))
+    P_printl(HOLD_APPLE_dict)
+    P_printl('HARVEST_APPLE_dict :',3)
+    HARVEST_APPLE_dict = dict(sorted(HARVEST_APPLE_dict.items(), key=lambda item: item[1][4], reverse=True))
+    P_printl(HARVEST_APPLE_dict)
+    P_printl('ALL_APPLE_ML_DATA :',3)
+    ALL_APPLE_ML_DATA.sort(key=lambda x: x[5], reverse=True)
+    P_printl(ALL_APPLE_ML_DATA)
+    
+
     pop_date = []
     for hold_apple_date in HOLD_APPLE_dict:
 
@@ -553,33 +561,59 @@ def Algo1(day_shift) : # next open is defined as strictly 0900 start
         bb_mid_today = All_good_apple_price_bb_dict[HOLD_APPLE]['bb_mid'][today]
         sql_cursor_Database_squeeze_name.execute("SELECT highs FROM "+HOLD_APPLE+" WHERE date LIKE "+today+"")
         hold_apple_price_highs_today = sql_cursor_Database_squeeze_name.fetchall()[0][0]
+        print(HOLD_APPLE_dict[hold_apple_date][2])
+
         if hold_apple_price_highs_today > bb_top_today:
-            after_touch_apple_day = 0
+            HOLD_APPLE_dict[hold_apple_date][2] = 0
         else:
-            after_touch_apple_day += 1
+            HOLD_APPLE_dict[hold_apple_date][2] += 1
 
         sql_cursor_Database_squeeze_name.execute("SELECT ends FROM "+HOLD_APPLE+" WHERE date LIKE "+today+"")
         apple_price_today = sql_cursor_Database_squeeze_name.fetchall()[0][0]
+
+        #@ accumulate the diff rate for each holding apple
+        HOLD_APPLE_dict[hold_apple_date].append(round((apple_price_today - hold_apple_price)/hold_apple_price*100,1))
+
         grow_length = All_apple_date.index(today) - All_apple_date.index(grow_date)
         is_top_too_crazy = All_good_apple_price_bb_dict[HOLD_APPLE]['high'][today] - All_good_apple_price_bb_dict[HOLD_APPLE]['bb_top'][today] > half_block[HOLD_APPLE]            
         is_top_too_crazy_over_5 = is_top_too_crazy and grow_length >= 5
-        if after_touch_apple_day >= 5 or is_top_too_crazy_over_5:
+        print('colin debug')
+        print(HOLD_APPLE)
+        print(today)
+        print(hold_apple_date)
+        print(grow_length)
+        print('half block of '+HOLD_APPLE+' is '+str(half_block[HOLD_APPLE]))
+        print('All_good_apple_price_bb_dict[HOLD_APPLE][high][today] of '+HOLD_APPLE+' is '+str(All_good_apple_price_bb_dict[HOLD_APPLE]['high'][today]))
+        print('All_good_apple_price_bb_dict[HOLD_APPLE][bb_top][today] of '+HOLD_APPLE+' is '+str(All_good_apple_price_bb_dict[HOLD_APPLE]['bb_top'][today]))
+        print('after_touch_apple_day = '+str(HOLD_APPLE_dict[hold_apple_date][2]))
+        if HOLD_APPLE_dict[hold_apple_date][2] >= 5 or is_top_too_crazy_over_5:
             is_over_half_block = All_good_apple_price_bb_dict[HOLD_APPLE]['bb_top'][today] - All_good_apple_price_bb_dict[HOLD_APPLE]['high'][today] > half_block[HOLD_APPLE]
             is_over_top_thsh_in_10_or_over_10 = ((apple_price_today - hold_apple_price)/hold_apple_price < OVER_TOP_THSH and grow_length < 10) or grow_length >= 10
             is_low_higher_than_top_2_p = (All_good_apple_price_bb_dict[HOLD_APPLE]['low'][today] - All_good_apple_price_bb_dict[HOLD_APPLE]['bb_top'][today])/All_good_apple_price_bb_dict[HOLD_APPLE]['bb_top'][today] > 0.02
+            print(is_over_half_block)
+            print(is_over_top_thsh_in_10_or_over_10)
+            print(is_low_higher_than_top_2_p)
+            print(is_top_too_crazy_over_5)
             if (is_over_half_block and is_over_top_thsh_in_10_or_over_10) or is_low_higher_than_top_2_p or is_top_too_crazy_over_5:
                 # harvest
                 P_printl('harvest '+HOLD_APPLE+' at '+today,1)
                 sql_cursor_Database_squeeze_name.execute("SELECT starts FROM "+HOLD_APPLE+" WHERE date LIKE "+next_date+"")
                 harvest_apple_price = sql_cursor_Database_squeeze_name.fetchall()[0][0]
                 price_diff_rate = round((harvest_apple_price - hold_apple_price) / hold_apple_price * 100,1)
-                HARVEST_APPLE_dict[today] = (HOLD_APPLE, grow_date, today, grow_length, price_diff_rate, len(top_result_list), len(mid_result_list), len(low_result_list), available_apple_amount, hold_apple_top_point_dict[HOLD_APPLE+grow_date])
-                ALL_APPLE_ML_DATA.append([len(top_result_list), len(mid_result_list), len(low_result_list), available_apple_amount, hold_apple_top_point_dict[HOLD_APPLE+grow_date], round(price_diff_rate/grow_length,1)])
+                # price_diff_rate just show the start ends
+                HARVEST_APPLE_dict[today] = (HOLD_APPLE, grow_date, today, grow_length, price_diff_rate, HOLD_APPLE_dict[hold_apple_date][3], HOLD_APPLE_dict[hold_apple_date][4], HOLD_APPLE_dict[hold_apple_date][5], HOLD_APPLE_dict[hold_apple_date][6], hold_apple_top_point_dict[HOLD_APPLE+grow_date])
+                #@ calculate the avg diff rate, not just start end
+                AVG_diff = sum(HOLD_APPLE_dict[hold_apple_date][-(len(HOLD_APPLE_dict[hold_apple_date])-7):])/grow_length
+                print('colin4')
+                print(HOLD_APPLE)
+                print(today)
+                print(grow_length)
+                print(HOLD_APPLE_dict[hold_apple_date][-(len(HOLD_APPLE_dict[hold_apple_date])-7):])
+                print(sum(HOLD_APPLE_dict[hold_apple_date][-(len(HOLD_APPLE_dict[hold_apple_date])-7):]))
+                ALL_APPLE_ML_DATA.append([HOLD_APPLE_dict[hold_apple_date][3], HOLD_APPLE_dict[hold_apple_date][4], HOLD_APPLE_dict[hold_apple_date][5], HOLD_APPLE_dict[hold_apple_date][6], hold_apple_top_point_dict[HOLD_APPLE+grow_date], round(AVG_diff,1)])
                 # HOLD_APPLE_dict.pop(hold_apple_date)
                 pop_date.append(hold_apple_date)
-                P_printl(HARVEST_APPLE_dict)
-                P_printl(ALL_APPLE_ML_DATA)
-                P_printl(HOLD_APPLE_dict)
+                
     for date in pop_date:
         P_printl(str(HOLD_APPLE_dict[date])+' is poped')
         HOLD_APPLE_dict.pop(date)
@@ -590,7 +624,7 @@ def Algo1(day_shift) : # next open is defined as strictly 0900 start
     apple_open = sql_cursor_Database_squeeze_name.fetchall()[0][0]
     # grow value determined by next open, assume never miss
     P_printl(today+' : Grow top apple '+apple_num+' with '+str(apple_open),2)
-    HOLD_APPLE_dict[today] = [apple_num, apple_open, 0] # after touch apple
+    HOLD_APPLE_dict[today] = [apple_num, apple_open, 0, len(top_result_list), len(mid_result_list), len(low_result_list), available_apple_amount] # after touch apple
 
 def main():
     start_time = time()  
@@ -599,10 +633,9 @@ def main():
     end_day_shift = 0
     
     # overwrite the shift for testing
-    # start_day_shift = 100
+    # start_day_shift = 200
     # end_day_shift = 0
-    # P_printl('start_day_shift = '+str(start_day_shift)+', and end_day_shift = '+str(end_day_shift))
-    # P_printl('',0,-1)
+    # P_printl('start_day_shift = '+str(start_day_shift)+', and end_day_shift = '+str(end_day_shift),0,-1)
 
     for day_shift in range(start_day_shift,end_day_shift,-1):
         Algo1(day_shift)
