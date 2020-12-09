@@ -1,5 +1,13 @@
 from Utopia_tools import *
-print(1<2)
+
+a = '123'
+b= [1,2,3]
+c = {}
+c[1] = 2
+c[2] = 3
+P_printl(a)
+P_printl(b)
+P_printl(c)
 #=========================================================================================================
 
 # def find(s1, s2, paragraphs, cross_line = True):

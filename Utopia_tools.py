@@ -44,14 +44,29 @@ def P_printt(data):
     print(type(data))
 
 def P_printl(string = None, level = 0, sleep_secs = 0):
-    print('\n==============================================================\n')
-    if string:
+    if type(string) == str:
+        print('\n==============================================================\n')
         if level > 0:
             print('Colin'+str(level)+' : '+string)
             print('\n==============================================================\n')
         else:
             print(string)
             print('\n==============================================================\n')
+    if type(string) == list:
+        print('\n==============================================================\n')
+        for l in string:
+            print(l)
+        print('\n==============================================================\n')
+    if type(string) == dict:
+        print('\n==============================================================\n')
+        for l in string:
+            print(string[l])
+        print('\n==============================================================\n')
+    if isinstance(string, np.ndarray):
+        print('\n==============================================================\n')
+        for l in string:
+            print(l)
+        print('\n==============================================================\n')
     if sleep_secs > 0:
         sleep(sleep_secs)
     if sleep_secs == -1:
