@@ -1,5 +1,5 @@
 import pandas, sqlite3, requests, calendar, os, urllib.request, sys, math, shutil, webbrowser, glob
-import re, nltk, jieba
+import re, nltk, jieba, random
 import numpy as np
 import matplotlib.pyplot as plt
 from dateutil import *
@@ -14,6 +14,7 @@ from distutils import *
 from nltk.probability import FreqDist
 from bs4 import BeautifulSoup, SoupStrainer
 from matplotlib import font_manager
+from sklearn.ensemble import RandomForestRegressor
 
 # All of my function starts with 'P_'
 
