@@ -45,6 +45,9 @@ def P_printt(data):
     print(type(data))
 
 def P_printl(string = None, level = 0, sleep_secs = 0):
+    if not string:
+        print('\n==============================================================\n')
+        print('\n==============================================================\n')
     if type(string) == str:
         print('\n==============================================================\n')
         if level > 0:
