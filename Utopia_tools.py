@@ -1,5 +1,5 @@
 import pandas, sqlite3, requests, calendar, os, urllib.request, sys, math, shutil, webbrowser, glob
-import re, nltk, jieba, random
+import re, nltk, jieba, random, pickle
 import numpy as np
 import matplotlib.pyplot as plt
 from dateutil import *
