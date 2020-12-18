@@ -219,7 +219,7 @@ def Algo1(day_shift, Mode) : # next open is defined as strictly 0900 start
         is_TR_mode = True
     elif Mode == 'VA':
         P_printl('This is in Validation mode')
-        is_SL_mode = True
+        is_VA_mode = True
     elif Mode == 'SL':
         P_printl('This is in SimuLation mode')
         is_SL_mode = True
@@ -282,7 +282,7 @@ def Algo1(day_shift, Mode) : # next open is defined as strictly 0900 start
         try :
             iter_dates = All_apple_date[-(latest_n_date_for_AVALIABLE + day_shift) : -day_shift]
 
-            if is_TR_mode: # ML mode grow next day open need to check the availability
+            if is_TR_mode or is_VA_mode: # ML mode grow next day open need to check the availability
                 iter_dates += [All_apple_date[-day_shift]] # need the outer [] other wise become '2', '0', '2', '0'
 
             for date in iter_dates:
@@ -329,11 +329,9 @@ def Algo1(day_shift, Mode) : # next open is defined as strictly 0900 start
             continue
         if apple_amount_avg * apple_price_avg < MIN_AMOUNT*1000:
             # if holding apple, do not exclude it becaues of amount not enough
-            if is_SL_mode and apple_num != HOLD_APPLE: # ignore the amount when holding apple in SL
+            # All mode should keep the same, except SL mode can slip the holding 1
+            if not (is_SL_mode and apple_num == HOLD_APPLE): # ignore the amount when holding apple in SL
                 print(apple_num+" not enough amount, abort")
-                continue
-            if is_TR_mode:
-                print(apple_num+" not enough amount, abort") # just pop it 
                 continue
         
         # filter out any massive change that is bigger than 10% in 22 days
@@ -588,19 +586,12 @@ def Algo1(day_shift, Mode) : # next open is defined as strictly 0900 start
             P_printl(apple_num+" is an top apple!")
 
             days_rise = 1
-            #@ range decided by apples bb mid rising time
             n=1
             for n in range(1,20+1):
                 days_rise *= 1 + ((bb_mid_dict[All_apple_date[-n-day_shift]] - bb_mid_dict[All_apple_date[-20-1-day_shift]]) / bb_mid_dict[All_apple_date[-20-1-day_shift]])
-            # while bb_mid_dict[All_apple_date[-n-day_shift]] > bb_mid_dict[All_apple_date[-n-1-day_shift]]:
-            #     days_rise *= 1 + ((bb_mid_dict[All_apple_date[-n-day_shift]] - bb_mid_dict[All_apple_date[-n-1-day_shift]]) / bb_mid_dict[All_apple_date[-n-1-day_shift]])
-            #     n+=1
-            #     if n>40:
-            #         break
-            
-            # for n in range(1,5+1):
-            #     days_rise *= pow(1 - (bb_top_dict[All_apple_date[-n-day_shift]] - bb_low_dict[All_apple_date[-n-day_shift]])/bb_low_dict[All_apple_date[-n-day_shift]],1)
-
+            for n in range(1,5+1):
+                if apple_low_dict[All_apple_date[-n-day_shift]] > bb_top_dict[All_apple_date[-n-day_shift]]:
+                    days_rise *= 0.5
             Top_points = round(days_rise,1)
             P_printl("Top_points = "+str(Top_points)+'%')
             hold_apple_top_point_dict[apple_num+'_'+today] = Top_points
@@ -678,7 +669,7 @@ def Algo1(day_shift, Mode) : # next open is defined as strictly 0900 start
     if is_SL_mode:
 
         # use the prediction here for the SL mode and replace the points
-        print('start prediction')
+        print('SL start prediction at '+today)
         predict_result_list = []
         for top_result in top_result_list: # iterate again for the prediction
             apple_num = top_result[0]
@@ -686,6 +677,7 @@ def Algo1(day_shift, Mode) : # next open is defined as strictly 0900 start
             input_data = [[len(top_result_list), len(mid_result_list), len(low_result_list),
                           available_apple_amount, juice_increase_rate_dict[apple_num], 
                           seeds_increase_rate_dict[apple_num], top_apple_dict[apple_num]]]
+            print(input_data)
             predict_result_list.append([apple_num, round(model.predict(input_data)[0],1)])
             P_printl("Predict Top_points = "+str(Top_points))
         # rank again
@@ -713,12 +705,12 @@ def Algo1(day_shift, Mode) : # next open is defined as strictly 0900 start
             is_over_half_block_after_1 = grow_length >= 1 and is_over_half_block
 
             # believe the topest now
-            # price_diff_rate = round((harvest_apple_price - hold_apple_price) / hold_apple_price * 100,1)
-            # P_printl('price_diff_rate = '+str(price_diff_rate)+', predict_result = '+str(predict_result))
+            price_diff_rate = round((harvest_apple_price - hold_apple_price) / hold_apple_price * 100,1)
+            P_printl('price_diff_rate = '+str(price_diff_rate)+', predict_result = '+str(predict_result))
             # is_price_diff_rate_over_predict_result = price_diff_rate > predict_result
+            # if is_price_diff_rate_over_predict_result:
+            #     P_printl('price_diff_rate reach predict_result',3)
 
-            if is_price_diff_rate_over_predict_result:
-                P_printl('price_diff_rate reach predict_result',3)
             if is_over_half_block_after_1:
                 P_printl('is_over_half_block_after_1 detected')
             if is_high_over_top_half_block_after_1:
@@ -901,7 +893,7 @@ def Algo1(day_shift, Mode) : # next open is defined as strictly 0900 start
     if is_VA_mode:
 
         # use the prediction here for the VA mode and replace the points
-        print('start prediction')
+        print('VA start prediction at '+today)
         predict_result_list = []
         for top_result in top_result_list: # iterate again for the prediction
             apple_num = top_result[0]
@@ -909,6 +901,7 @@ def Algo1(day_shift, Mode) : # next open is defined as strictly 0900 start
             input_data = [[len(top_result_list), len(mid_result_list), len(low_result_list),
                           available_apple_amount, juice_increase_rate_dict[apple_num], 
                           seeds_increase_rate_dict[apple_num], top_apple_dict[apple_num]]]
+            print(input_data)
             predict_result_list.append([apple_num, round(model.predict(input_data)[0],1)])
             P_printl("Predict Top_points = "+str(Top_points))
         # rank again
@@ -1031,13 +1024,18 @@ def Algo1(day_shift, Mode) : # next open is defined as strictly 0900 start
             P_printl('VA Prediction_error_avg = '+str(Prediction_error_avg),4)
 
 
-
 def main():
     global start_day_shift
     global end_day_shift
     global model
-    args = parse_command_line()
+    global HOLD_APPLE
+    global HARVEST_APPLE_list
+    global HOLD_APPLE_LIST
+    global HOLD_APPLE_dict
 
+    # =======================================================================================================
+    # Prepare dates
+    args = parse_command_line()
     start_time = time()  
     start_len_shift = 281 # 281 lock at 20200131 for a month seeds
     start_day_shift = len(All_apple_date) - start_len_shift
@@ -1051,8 +1049,10 @@ def main():
     
     P_printl('start_day_shift = '+str(start_day_shift)+', and end_day_shift_TR = '+str(end_day_shift_TR),0,2)
     
-    
-    # start gathering data
+    # =======================================================================================================
+    # TR, start gathering data
+
+    P_printl('Enter TR mode',5)
     for day_shift in range(start_day_shift,end_day_shift_TR,-1): # train end eariler
         Algo1(day_shift, 'TR')
 
@@ -1069,7 +1069,6 @@ def main():
     P_printl(ALL_APPLE_ML_DATA)
 
 
-    # TR
     All_data = ALL_APPLE_ML_DATA
 
     np.random.shuffle(All_data)
@@ -1083,79 +1082,31 @@ def main():
     model.fit(x, y)
     with open('model_random_forest.pickle', 'wb') as f:
         pickle.dump(model, f)
-    
-    
-    # VA, continue from end_day_shift, start at end_day_shift_TR
+
+    # =======================================================================================================
+    # VA, start at end_day_shift_TR
+
     P_printl('Enter VA mode',5)
     with open('model_random_forest.pickle', 'rb') as f:
         model = pickle.load(f)
 
+    HARVEST_APPLE_list = []
+    HOLD_APPLE_LIST = []
+    HOLD_APPLE_dict = {}
+    HOLD_APPLE = 'none'
+
     for day_shift in range(end_day_shift_TR,0,-1): 
         Algo1(day_shift, 'VA')
 
-    '''
-    result = []
-
-    result_guess = []
-    guess_data = [ a[7] for a in All_data[-test_data_amount:]] # guess data is the real output for eval
-    # print(guess_data)
-    # print(np.median(guess_data))
-    # print(np.mean(guess_data))
-    guess_low_range = np.median(guess_data)-np.mean(guess_data)/2
-    guess_high_range = np.median(guess_data)+np.mean(guess_data)/2
-    print('Median is '+str(np.median(y)))
-    print(guess_low_range)
-    print(guess_high_range)
-
-    for i in range(1,test_data_amount):
-        # print('-----------------')
-        x = [All_data[-i][0:7]]
-        y = All_data[-i][7]
-        y_pred = model.predict(x)
-        y_guess = random.uniform(guess_low_range,guess_high_range)
-        result.append(abs(y_pred - y))
-        result_guess.append(abs(y_guess - y))
-        # print(y)
-        # print(y_pred)
-        # print(y_guess)
-
-    a=[ a[0:7] for a in All_data[-test_data_amount:]]
-    b=[ a[7] for a in All_data[-test_data_amount:]]
-    for aa,bb in zip(a,b):
-        # print('input:')
-        # print(aa)
-        output = model.predict([aa])
-        if output > 3:
-            print('-----------------')
-            print('answer:')
-            print(bb)
-            print('output:')
-            print(output)
-    print('-----------------')
-    print('Guess error is '+str(sum(result_guess)/len(result_guess)))
-    print('Prediction error is '+str(sum(result)/len(result)))
-    print('Score is '+str(model.score(a,b)))
-
-    today_input = final_input_today_list
-    print('today input:')
-    print(today_input)
-    final = []
-    greater_zero_c = 0
-    for ti in today_input:
-        print(ti)
-        predict_result = model.predict([ti])
-        if predict_result > 0:
-            greater_zero_c += 1
-        final.append([predict_result,ti])
-    print('------')
-    final.sort(key=lambda x: x[0])
-    P_printl(final)
-    print('greater_zero rate = '+str(greater_zero_c/len(today_input)))
-    '''
-    
+    # =======================================================================================================
     #SL, date can not cross TR
-    #@ comment this reading when all done
+
     P_printl('Enter SL mode',5)
+    HARVEST_APPLE_list = []
+    HOLD_APPLE_LIST = []
+    HOLD_APPLE_dict = {}
+    HOLD_APPLE = 'none'
+
     with open('model_random_forest.pickle', 'rb') as f:
         model = pickle.load(f)
     for day_shift in range(end_day_shift_TR,0,-1):
