@@ -1,6 +1,6 @@
 from Utopia_tools import *
 
-#@ show train how much fit
+#@ show training error
 
 P_enable_logging()
 #@ find max paradise apples and analyze
@@ -111,6 +111,7 @@ TOP_OVER_MID_RATE = -0.02
 pick_ratio_in_list = 1
 juice_rate_max = 100 # currently only for top and mid
 juice_rate_min = -100
+MIN_SL_SCORE_FROM_ML_TESTING = 8
 juice_pow = 1
 replace_mid_to_low = True
 LOW_DAY_IGNORE_HARVEST = 1
@@ -128,6 +129,7 @@ hold_apple_top_point_dict = {}
 All_holding_apple_dict = {}
 grow_date_dict = {}
 ALL_APPLE_ML_DATA = []
+VA_ALL_APPLE_ML_DATA = []
 HOLD_APPLE_LIST = []
 HARVEST_APPLE_list = []
 HOLD_APPLE_dict = {}
@@ -136,8 +138,10 @@ len_init_hold_apple_dict = 0
 final_input_today_list = []
 start_day_shift = 0
 end_day_shift = 0
-model = RandomForestRegressor()
+model = RandomForestRegressor(n_estimators=5005)
 TR_VA_rate = 0.8
+VA_Predict_dict = {}
+VA_Predict_output = {}
 
 def Algo1(day_shift, Mode) : # next open is defined as strictly 0900 start
 # note : in reality, the operation is delayed a day, so follow it at next open
@@ -200,7 +204,10 @@ def Algo1(day_shift, Mode) : # next open is defined as strictly 0900 start
     global grow_date_dict
     global HOLD_APPLE_LIST
     global HARVEST_APPLE_list
+    global VA_Predict_dict
+    global VA_Predict_output
     global ALL_APPLE_ML_DATA
+    global VA_ALL_APPLE_ML_DATA
     global HOLD_APPLE_dict
     global seeds_increase_rate_dict
     global len_init_hold_apple_dict
@@ -208,6 +215,7 @@ def Algo1(day_shift, Mode) : # next open is defined as strictly 0900 start
     global start_day_shift
     global end_day_shift
     global model
+    global MIN_SL_SCORE_FROM_ML_TESTING
 
     is_TR_mode = False
     is_VA_mode = False
@@ -504,6 +512,7 @@ def Algo1(day_shift, Mode) : # next open is defined as strictly 0900 start
                                                     'bb_mid' : bb_mid_dict,
                                                     'bb_low' : bb_low_dict
                                                   }
+        # print(All_good_apple_price_bb_dict) # cost too much time
         
         #calculate the half block by seperate the max bb top and min bb low into 5 blocks 
         #(half block = /10)
@@ -586,12 +595,13 @@ def Algo1(day_shift, Mode) : # next open is defined as strictly 0900 start
             P_printl(apple_num+" is an top apple!")
 
             days_rise = 1
-            n=1
             for n in range(1,20+1):
                 days_rise *= 1 + ((bb_mid_dict[All_apple_date[-n-day_shift]] - bb_mid_dict[All_apple_date[-20-1-day_shift]]) / bb_mid_dict[All_apple_date[-20-1-day_shift]])
             for n in range(1,5+1):
                 if apple_low_dict[All_apple_date[-n-day_shift]] > bb_top_dict[All_apple_date[-n-day_shift]]:
                     days_rise *= 0.5
+                mid = (apple_high_dict[All_apple_date[-n-day_shift]] - apple_low_dict[All_apple_date[-n-day_shift]])/2
+                days_rise *= 1 - abs((mid - bb_top_dict[All_apple_date[-n-day_shift]])/bb_top_dict[All_apple_date[-n-day_shift]])
             Top_points = round(days_rise,1)
             P_printl("Top_points = "+str(Top_points)+'%')
             hold_apple_top_point_dict[apple_num+'_'+today] = Top_points
@@ -678,11 +688,12 @@ def Algo1(day_shift, Mode) : # next open is defined as strictly 0900 start
                           available_apple_amount, juice_increase_rate_dict[apple_num], 
                           seeds_increase_rate_dict[apple_num], top_apple_dict[apple_num]]]
             print(input_data)
-            predict_result_list.append([apple_num, round(model.predict(input_data)[0],1)])
-            P_printl("Predict Top_points = "+str(Top_points))
+            predict_result_sl = round(model.predict(input_data)[0],1)
+            predict_result_list.append([apple_num, predict_result_sl])
+            P_printl("Predict Top_points = "+str(predict_result_sl))
         # rank again
         predict_result_list.sort(key=lambda x: x[-1], reverse=True)
-        P_printl("Predict tops are ("+ str(len(top_result_list)) +") :",1)
+        P_printl("Predict tops are ("+ str(len(predict_result_list)) +") :",1)
         P_printl(predict_result_list)
 
         # harvest only when holding
@@ -695,38 +706,46 @@ def Algo1(day_shift, Mode) : # next open is defined as strictly 0900 start
             hold_apple_price = HOLD_APPLE_LIST[2]
             predict_result = HOLD_APPLE_LIST[3]
             sql_cursor_Database_squeeze_name.execute("SELECT starts FROM "+HOLD_APPLE+" WHERE date LIKE "+next_date+"")
-            harvest_apple_price = sql_cursor_Database_squeeze_name.fetchall()[0][0]
-            grow_length = All_apple_date.index(today) - All_apple_date.index(grow_date)
-            is_high_over_top_half_block = All_good_apple_price_bb_dict[HOLD_APPLE]['high'][today] - All_good_apple_price_bb_dict[HOLD_APPLE]['bb_top'][today] > half_block[HOLD_APPLE]            
-            is_high_over_top_half_block_after_1 = is_high_over_top_half_block and grow_length >= 1
-            is_low_higher_than_top_2_p = (All_good_apple_price_bb_dict[HOLD_APPLE]['low'][today] - All_good_apple_price_bb_dict[HOLD_APPLE]['bb_top'][today])/All_good_apple_price_bb_dict[HOLD_APPLE]['bb_top'][today] > 0.02
-            is_low_higher_than_top_2_p_after_1 = is_low_higher_than_top_2_p and grow_length >= 1
-            is_over_half_block = All_good_apple_price_bb_dict[HOLD_APPLE]['bb_top'][today] - All_good_apple_price_bb_dict[HOLD_APPLE]['high'][today] > half_block[HOLD_APPLE]
-            is_over_half_block_after_1 = grow_length >= 1 and is_over_half_block
-
-            # believe the topest now
-            price_diff_rate = round((harvest_apple_price - hold_apple_price) / hold_apple_price * 100,1)
-            P_printl('price_diff_rate = '+str(price_diff_rate)+', predict_result = '+str(predict_result))
-            # is_price_diff_rate_over_predict_result = price_diff_rate > predict_result
-            # if is_price_diff_rate_over_predict_result:
-            #     P_printl('price_diff_rate reach predict_result',3)
-
-            if is_over_half_block_after_1:
-                P_printl('is_over_half_block_after_1 detected')
-            if is_high_over_top_half_block_after_1:
-                P_printl('is_high_over_top_half_block_after_1 detected')
-            if is_low_higher_than_top_2_p_after_1:
-                P_printl('is_low_higher_than_top_2_p_after_1 detected')
-            if is_over_half_block_after_1 or is_high_over_top_half_block_after_1 \
-                    or is_low_higher_than_top_2_p_after_1:# or is_price_diff_rate_over_predict_result:
-                # harvest
-                P_printl('harvest '+HOLD_APPLE+' at '+today,1)
-                P_printl('harvest_apple_price = '+str(harvest_apple_price),1)
-                P_printl('price_diff_rate = '+str(price_diff_rate)+'%',1)
-                PARADISE *= 1+price_diff_rate/100
-                P_printl('now the PARADISE is = '+str(PARADISE),1)
-                HARVEST_APPLE_list.append([HOLD_APPLE, grow_date, today, grow_length, predict_result, price_diff_rate])
+            harvest_apple_price = 0
+            try:
+                harvest_apple_price = sql_cursor_Database_squeeze_name.fetchall()[0][0]
+            except:
+                P_printl('Warning next_date '+HOLD_APPLE+' does not exist, assuming no growing',5)
                 HOLD_APPLE_LIST = []
+            if harvest_apple_price:
+                print(HOLD_APPLE)
+                print(today)
+                print(All_good_apple_price_bb_dict)
+                grow_length = All_apple_date.index(today) - All_apple_date.index(grow_date)
+                is_high_over_top_half_block = All_good_apple_price_bb_dict[HOLD_APPLE]['high'][today] - All_good_apple_price_bb_dict[HOLD_APPLE]['bb_top'][today] > half_block[HOLD_APPLE]            
+                is_high_over_top_half_block_after_1 = is_high_over_top_half_block and grow_length >= 1
+                is_low_higher_than_top_2_p = (All_good_apple_price_bb_dict[HOLD_APPLE]['low'][today] - All_good_apple_price_bb_dict[HOLD_APPLE]['bb_top'][today])/All_good_apple_price_bb_dict[HOLD_APPLE]['bb_top'][today] > 0.02
+                is_low_higher_than_top_2_p_after_1 = is_low_higher_than_top_2_p and grow_length >= 1
+                is_over_half_block = All_good_apple_price_bb_dict[HOLD_APPLE]['bb_top'][today] - All_good_apple_price_bb_dict[HOLD_APPLE]['high'][today] > half_block[HOLD_APPLE]
+                is_over_half_block_after_1 = grow_length >= 1 and is_over_half_block
+
+                # believe the topest now
+                price_diff_rate = round((harvest_apple_price - hold_apple_price) / hold_apple_price * 100,1)
+                P_printl('price_diff_rate = '+str(price_diff_rate)+', predict_result = '+str(predict_result))
+                # is_price_diff_rate_over_predict_result = price_diff_rate > predict_result
+                # if is_price_diff_rate_over_predict_result:
+                #     P_printl('price_diff_rate reach predict_result',3)
+
+                if is_over_half_block_after_1:
+                    P_printl('is_over_half_block_after_1 detected')
+                if is_high_over_top_half_block_after_1:
+                    P_printl('is_high_over_top_half_block_after_1 detected')
+                if is_low_higher_than_top_2_p_after_1:
+                    P_printl('is_low_higher_than_top_2_p_after_1 detected')
+                if is_over_half_block_after_1 or is_low_higher_than_top_2_p_after_1 :
+                    # harvest
+                    P_printl('harvest '+HOLD_APPLE+' at '+today,1)
+                    P_printl('harvest_apple_price = '+str(harvest_apple_price),1)
+                    P_printl('price_diff_rate = '+str(price_diff_rate)+'%',1)
+                    PARADISE *= 1+price_diff_rate/100
+                    P_printl('now the PARADISE is = '+str(PARADISE),1)
+                    HARVEST_APPLE_list.append([HOLD_APPLE, grow_date, today, grow_length, predict_result, price_diff_rate])
+                    HOLD_APPLE_LIST = []
 
         P_printl('SL HARVEST_APPLE_list :',3)
         HARVEST_APPLE_list.sort(key=lambda x: x[-1], reverse=True)
@@ -750,8 +769,8 @@ def Algo1(day_shift, Mode) : # next open is defined as strictly 0900 start
             if greater_zero_c_rate < 0.5:
                 P_printl('more than half lesser than 0, grow nothing',3)
                 return
-            if predict_result_list[0][1] < 5:
-                P_printl('highest prediction lower than 5, grow nothing',3)
+            if predict_result_list[0][1] < MIN_SL_SCORE_FROM_ML_TESTING:
+                P_printl('highest prediction lower than MIN_SL_SCORE_FROM_ML_TESTING, grow nothing',3)
                 return
             # grow apple
             apple_num = predict_result_list[0][0]
@@ -813,7 +832,7 @@ def Algo1(day_shift, Mode) : # next open is defined as strictly 0900 start
                 P_printl('is_high_over_top_half_block_after_1 detected')
             if is_low_higher_than_top_2_p_after_1:
                 P_printl('is_low_higher_than_top_2_p_after_1 detected')
-            if is_over_half_block_after_1 or is_high_over_top_half_block_after_1 or is_low_higher_than_top_2_p_after_1:
+            if is_over_half_block_after_1 or is_low_higher_than_top_2_p_after_1:
                 # harvest
                 P_printl('harvest '+HOLD_APPLE+' at '+today,1)
                 P_printl('harvest_apple_price = '+str(harvest_apple_price),1)
@@ -848,19 +867,31 @@ def Algo1(day_shift, Mode) : # next open is defined as strictly 0900 start
         if len(top_result_list) == 0:
             P_printl('Do nothing when no top',3)
         else:
-            for top_result in top_result_list:
-                apple_num = top_result[0]
-                apple_top_point = top_result[1]
-                sql_cursor_Database_squeeze_name.execute("SELECT starts FROM "+apple_num+" WHERE date LIKE "+next_date+"")
-                apple_open = sql_cursor_Database_squeeze_name.fetchall()[0][0]
-                # grow value determined by next open, assume never miss
-                P_printl(today+' : Grow top apple '+apple_num+' with '+str(apple_open),2)
-                HOLD_APPLE_dict[apple_num+'_'+today] = [int(today), apple_num,
-                                        apple_open, 0, len(top_result_list),
-                                        len(mid_result_list), len(low_result_list),
-                                        available_apple_amount, juice_increase_rate_dict[apple_num], 
-                                        seeds_increase_rate_dict[apple_num], apple_top_point] 
-                len_init_hold_apple_dict = len(HOLD_APPLE_dict[apple_num+'_'+today])
+            # for top_result in top_result_list:
+            #     apple_num = top_result[0]
+            #     apple_top_point = top_result[1]
+            #     sql_cursor_Database_squeeze_name.execute("SELECT starts FROM "+apple_num+" WHERE date LIKE "+next_date+"")
+            #     apple_open = sql_cursor_Database_squeeze_name.fetchall()[0][0]
+            #     # grow value determined by next open, assume never miss
+            #     P_printl(today+' : Grow top apple '+apple_num+' with '+str(apple_open),2)
+            #     HOLD_APPLE_dict[apple_num+'_'+today] = [int(today), apple_num,
+            #                             apple_open, 0, len(top_result_list),
+            #                             len(mid_result_list), len(low_result_list),
+            #                             available_apple_amount, juice_increase_rate_dict[apple_num], 
+            #                             seeds_increase_rate_dict[apple_num], apple_top_point] 
+            #     len_init_hold_apple_dict = len(HOLD_APPLE_dict[apple_num+'_'+today])
+            apple_num = top_result_list[0][0]
+            apple_top_point = top_result_list[0][1]
+            sql_cursor_Database_squeeze_name.execute("SELECT starts FROM "+apple_num+" WHERE date LIKE "+next_date+"")
+            apple_open = sql_cursor_Database_squeeze_name.fetchall()[0][0]
+            # grow value determined by next open, assume never miss
+            P_printl(today+' : Grow top apple '+apple_num+' with '+str(apple_open),2)
+            HOLD_APPLE_dict[apple_num+'_'+today] = [int(today), apple_num,
+                                    apple_open, 0, len(top_result_list),
+                                    len(mid_result_list), len(low_result_list),
+                                    available_apple_amount, juice_increase_rate_dict[apple_num], 
+                                    seeds_increase_rate_dict[apple_num], apple_top_point] 
+            len_init_hold_apple_dict = len(HOLD_APPLE_dict[apple_num+'_'+today])
         P_printl('TR HOLD_APPLE_dict :',3)
         HOLD_APPLE_dict = dict(sorted(HOLD_APPLE_dict.items(), key=lambda item: item[1][0], reverse=True))
         P_printl(HOLD_APPLE_dict)
@@ -902,11 +933,14 @@ def Algo1(day_shift, Mode) : # next open is defined as strictly 0900 start
                           available_apple_amount, juice_increase_rate_dict[apple_num], 
                           seeds_increase_rate_dict[apple_num], top_apple_dict[apple_num]]]
             print(input_data)
-            predict_result_list.append([apple_num, round(model.predict(input_data)[0],1)])
-            P_printl("Predict Top_points = "+str(Top_points))
+            predict_result_va = round(model.predict(input_data)[0],1)
+            predict_result_list.append([apple_num, predict_result_va])
+            P_printl("Predict Top_points = "+str(predict_result_va))
+            VA_Predict_dict[apple_num+'_'+today] = input_data[0]
+            VA_Predict_output[apple_num+'_'+today] = predict_result_va
         # rank again
         predict_result_list.sort(key=lambda x: x[-1], reverse=True)
-        P_printl("Predict tops are ("+ str(len(top_result_list)) +") :",1)
+        P_printl("Predict tops are ("+ str(len(predict_result_list)) +") :",1)
         P_printl(predict_result_list)
         
         pop_apple_num_date = []
@@ -959,7 +993,7 @@ def Algo1(day_shift, Mode) : # next open is defined as strictly 0900 start
                 P_printl('is_high_over_top_half_block_after_1 detected')
             if is_low_higher_than_top_2_p_after_1:
                 P_printl('is_low_higher_than_top_2_p_after_1 detected')
-            if is_over_half_block_after_1 or is_high_over_top_half_block_after_1 or is_low_higher_than_top_2_p_after_1:
+            if is_over_half_block_after_1 or is_low_higher_than_top_2_p_after_1:
                 # harvest
                 P_printl('harvest '+HOLD_APPLE+' at '+today,1)
                 P_printl('harvest_apple_price = '+str(harvest_apple_price),1)
@@ -968,6 +1002,7 @@ def Algo1(day_shift, Mode) : # next open is defined as strictly 0900 start
                 #@ calculate the avg diff rate, not just start end
                 AVG_diff = round(sum(HOLD_APPLE_dict[apple_num_hold_apple_date][-(len(HOLD_APPLE_dict[apple_num_hold_apple_date])-len_init_hold_apple_dict):])/grow_length,1)
                 HARVEST_APPLE_list.append([HOLD_APPLE, grow_date, today, predict_diff, AVG_diff])
+                VA_ALL_APPLE_ML_DATA.append(VA_Predict_dict[HOLD_APPLE+'_'+grow_date]+[AVG_diff])
 
                 # HOLD_APPLE_dict.pop(apple_num_hold_apple_date)
                 pop_apple_num_date.append(apple_num_hold_apple_date)
@@ -977,18 +1012,26 @@ def Algo1(day_shift, Mode) : # next open is defined as strictly 0900 start
             HOLD_APPLE_dict.pop(apple_num_date)
             
         # grow all the apples and check if the avg_diff match the prediction
-        if len(predict_result_list) == 0:
+        if len(top_result_list) == 0:
             P_printl('Do nothing when no top',3)
         else:
-            for predict_result in predict_result_list:
-                apple_num = predict_result[0]
-                predict_diff = predict_result[1]
-                sql_cursor_Database_squeeze_name.execute("SELECT starts FROM "+apple_num+" WHERE date LIKE "+next_date+"")
-                apple_open = sql_cursor_Database_squeeze_name.fetchall()[0][0]
-                # grow value determined by next open, assume never miss
-                P_printl(today+' : Grow top apple '+apple_num+' with '+str(apple_open),2)
-                HOLD_APPLE_dict[apple_num+'_'+today] = [today, apple_num, apple_open, 0, predict_diff] 
-                len_init_hold_apple_dict = len(HOLD_APPLE_dict[apple_num+'_'+today])
+            # for predict_result in predict_result_list:
+            #     apple_num = predict_result[0]
+            #     predict_diff = predict_result[1]
+            #     sql_cursor_Database_squeeze_name.execute("SELECT starts FROM "+apple_num+" WHERE date LIKE "+next_date+"")
+            #     apple_open = sql_cursor_Database_squeeze_name.fetchall()[0][0]
+            #     # grow value determined by next open, assume never miss
+            #     P_printl(today+' : Grow top apple '+apple_num+' with '+str(apple_open),2)
+            #     HOLD_APPLE_dict[apple_num+'_'+today] = [today, apple_num, apple_open, 0, predict_diff] 
+            #     len_init_hold_apple_dict = len(HOLD_APPLE_dict[apple_num+'_'+today])
+            apple_num = top_result_list[0][0]
+            predict_diff = VA_Predict_output[apple_num+'_'+today]
+            sql_cursor_Database_squeeze_name.execute("SELECT starts FROM "+apple_num+" WHERE date LIKE "+next_date+"")
+            apple_open = sql_cursor_Database_squeeze_name.fetchall()[0][0]
+            # grow value determined by next open, assume never miss
+            P_printl(today+' : Grow top apple '+apple_num+' with '+str(apple_open),2)
+            HOLD_APPLE_dict[apple_num+'_'+today] = [today, apple_num, apple_open, 0, predict_diff] 
+            len_init_hold_apple_dict = len(HOLD_APPLE_dict[apple_num+'_'+today])
         P_printl('VA HOLD_APPLE_dict :',3)
         HOLD_APPLE_dict = dict(sorted(HOLD_APPLE_dict.items(), key=lambda item: item[1][0], reverse=True))
         P_printl(HOLD_APPLE_dict)
@@ -1015,8 +1058,8 @@ def Algo1(day_shift, Mode) : # next open is defined as strictly 0900 start
             guess_error = 0
             guess_low_range = np.median(random_guessing_list)-np.mean(random_guessing_list)/2
             guess_high_range = np.median(random_guessing_list)+np.mean(random_guessing_list)/2
-            guess_result = random.uniform(guess_low_range,guess_high_range)
             for HARVEST_APPLE in HARVEST_APPLE_list:
+                guess_result = random.uniform(guess_low_range,guess_high_range)
                 guess_error += abs(guess_result - HARVEST_APPLE[4])
             Guess_error_avg = guess_error / len(HARVEST_APPLE_list)
             P_printl('VA Guess_error_avg = '+str(Guess_error_avg),4)
@@ -1047,9 +1090,10 @@ def main():
     end_day_shift_TR = start_day_shift - round((start_day_shift - end_day_shift) * TR_VA_rate)
     
     
-    P_printl('start_day_shift = '+str(start_day_shift)+', and end_day_shift_TR = '+str(end_day_shift_TR),0,2)
+    P_printl('start_day_shift = '+str(start_day_shift)+', and end_day_shift_TR = '+str(end_day_shift_TR),0,1)
     
     # =======================================================================================================
+    # '''
     # TR, start gathering data
 
     P_printl('Enter TR mode',5)
@@ -1061,29 +1105,69 @@ def main():
     elapsed_time_per_round = str(round((time()-start_time)/(start_day_shift-end_day_shift)))
     print('Time result')
     P_printl('Execution time : '+elapsed_time_total+' seconds ('+elapsed_time_total_min+' min) total and '+elapsed_time_per_round+' seconds per round')
-    P_printl('HOLD_APPLE_dict :',3)
+    P_printl('TR HOLD_APPLE_dict :',3)
     P_printl(HOLD_APPLE_dict)
-    P_printl('HARVEST_APPLE_list :',3)
+    P_printl('TR HARVEST_APPLE_list :',3)
     P_printl(HARVEST_APPLE_list)
-    P_printl('ALL_APPLE_ML_DATA :',3)
-    P_printl(ALL_APPLE_ML_DATA)
+    # P_printl('TR ALL_APPLE_ML_DATA :',3)
+    # P_printl(ALL_APPLE_ML_DATA)
 
-
+    # '''
     All_data = ALL_APPLE_ML_DATA
 
     np.random.shuffle(All_data)
-    test_data_amount = round(len(All_data) * 0.2)
+    # test_data_amount = round(len(All_data) * 0.2)
 
-    x = [ a[0:7] for a in All_data[:(len(All_data)-test_data_amount)]]
-    y = [ a[7] for a in All_data[:(len(All_data)-test_data_amount)]]
-
+    # x = [ a[0:7] for a in All_data[:(len(All_data)-test_data_amount)]]
+    # y = [ a[7] for a in All_data[:(len(All_data)-test_data_amount)]]
+    x = [ a[0:7] for a in All_data]
+    y = [ a[7] for a in All_data]
     x, y = np.array(x), np.array(y)
 
     model.fit(x, y)
     with open('model_random_forest.pickle', 'wb') as f:
         pickle.dump(model, f)
+    
+    # with open('model_random_forest.pickle', 'rb') as f:
+    #     model = pickle.load(f)
+    # All_data = [
+    # [130, 225, 13, 368, 3.0, 88, 8.5, 10]
+    # ,[130, 225, 13, 368, 32.1, 15, 3.8, 10]
+    # ,[130, 225, 13, 368, -0.6, -17, 3.0 ,10]
+    # ]
+    # x = [ a[0:7] for a in All_data]
+    # y = [ a[7] for a in All_data]
 
+    P_printl('Evaluating the training error :',5)
+
+    guess_error = 0
+    guess_low_range = np.median(y)-np.mean(y)/2
+    guess_high_range = np.median(y)+np.mean(y)/2
+    print(guess_low_range)
+    print(guess_high_range)
+    for dy in y:
+        guess_result = random.uniform(guess_low_range,guess_high_range)
+        guess_error += abs(guess_result - dy)
+        print(guess_result)
+        print(guess_error)
+    Guess_error_avg = guess_error / len(y)
+    P_printl('TR Guess_error_avg = '+str(Guess_error_avg),5)
+
+    # show the training error
+    error_sum = 0 
+    predict_dx_sum = 0
+    for dx,dy in zip(x,y):
+        predict_dx_sum += model.predict([dx])[0]
+        diff = abs(model.predict([dx])[0] - dy)
+        print('diff = '+str(diff))
+        error_sum += diff
+    MIN_SL_SCORE_FROM_ML_TESTING = np.mean(y)
+    P_printl('MIN_SL_SCORE_FROM_ML_TESTING is : '+str(MIN_SL_SCORE_FROM_ML_TESTING))
+    TR_error = error_sum/len(x)
+    P_printl('Training error is : '+str(TR_error))
+    # '''
     # =======================================================================================================
+    # '''
     # VA, start at end_day_shift_TR
 
     P_printl('Enter VA mode',5)
@@ -1097,8 +1181,18 @@ def main():
 
     for day_shift in range(end_day_shift_TR,0,-1): 
         Algo1(day_shift, 'VA')
+    
+    P_printl('VA HARVEST_APPLE_list :',3)
+    HARVEST_APPLE_list.sort(key=lambda x: x[-1], reverse=True)
+    P_printl(HARVEST_APPLE_list)
 
+    P_printl('VA_ALL_APPLE_ML_DATA :',3)
+    VA_ALL_APPLE_ML_DATA.sort(key=lambda x: x[-1], reverse=True)
+    P_printl(VA_ALL_APPLE_ML_DATA)
+
+    # '''
     # =======================================================================================================
+    # '''
     #SL, date can not cross TR
 
     P_printl('Enter SL mode',5)
@@ -1118,7 +1212,7 @@ def main():
     print('Time result')
     P_printl('Execution time : '+elapsed_time_total+' seconds ('+elapsed_time_total_min+' min) total and '+elapsed_time_per_round+' seconds per round')
     P_printl('PARADISE rate = '+str(round((PARADISE-1)*100))+'%')
-
+    # '''
 
 if __name__ == '__main__':
     main()
