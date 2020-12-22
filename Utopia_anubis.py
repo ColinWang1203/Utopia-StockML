@@ -597,15 +597,17 @@ def Algo1(day_shift, Mode) : # next open is defined as strictly 0900 start
             days_rise = 1
             for n in range(1,20+1):
                 days_rise *= 1 + ((bb_mid_dict[All_apple_date[-n-day_shift]] - bb_mid_dict[All_apple_date[-20-1-day_shift]]) / bb_mid_dict[All_apple_date[-20-1-day_shift]])
+
             for n in range(1,5+1):
                 if apple_low_dict[All_apple_date[-n-day_shift]] > bb_top_dict[All_apple_date[-n-day_shift]]:
                     days_rise *= 0.5
-                mid = (apple_high_dict[All_apple_date[-n-day_shift]] - apple_low_dict[All_apple_date[-n-day_shift]])/2
+                mid = (apple_high_dict[All_apple_date[-n-day_shift]] - apple_low_dict[All_apple_date[-n-day_shift]])/2 + apple_low_dict[All_apple_date[-n-day_shift]]
                 days_rise *= 1 - abs((mid - bb_top_dict[All_apple_date[-n-day_shift]])/bb_top_dict[All_apple_date[-n-day_shift]])
+
             Top_points = round(days_rise,1)
             P_printl("Top_points = "+str(Top_points)+'%')
             hold_apple_top_point_dict[apple_num+'_'+today] = Top_points
-            
+
             top_apple_dict[apple_num] = Top_points
             
         except Exception as e:
@@ -837,6 +839,7 @@ def Algo1(day_shift, Mode) : # next open is defined as strictly 0900 start
                 P_printl('harvest '+HOLD_APPLE+' at '+today,1)
                 P_printl('harvest_apple_price = '+str(harvest_apple_price),1)
                 price_diff_rate = round((harvest_apple_price - hold_apple_price) / hold_apple_price * 100,1)
+                PARADISE *= 1+price_diff_rate/100
                 # price_diff_rate just show the start ends
                 #@ calculate the avg diff rate, not just start end
                 AVG_diff = round(sum(HOLD_APPLE_dict[apple_num_hold_apple_date][-(len(HOLD_APPLE_dict[apple_num_hold_apple_date])-len_init_hold_apple_dict):])/grow_length,1)
@@ -1084,35 +1087,57 @@ def main():
     start_day_shift = len(All_apple_date) - start_len_shift
     end_day_shift = 0
     # overwrite the shift for testing
-    if args.para1:
-        start_day_shift = args.para1
+    # if args.para1:
+    #     start_day_shift = args.para1
     
-    end_day_shift_TR = start_day_shift - round((start_day_shift - end_day_shift) * TR_VA_rate)
+    # end_day_shift_TR = start_day_shift - round((start_day_shift - end_day_shift) * TR_VA_rate)
     
     
-    P_printl('start_day_shift = '+str(start_day_shift)+', and end_day_shift_TR = '+str(end_day_shift_TR),0,1)
+    P_printl('start_day_shift = '+str(start_day_shift)+', and end_day_shift = '+str(end_day_shift),0,1)
     
     # =======================================================================================================
     # '''
     # TR, start gathering data
 
     P_printl('Enter TR mode',5)
-    for day_shift in range(start_day_shift,end_day_shift_TR,-1): # train end eariler
+    for day_shift in range(start_day_shift,end_day_shift,-1): # train end eariler
         Algo1(day_shift, 'TR')
 
     elapsed_time_total = str(round(time()-start_time))
     elapsed_time_total_min = str(round((time()-start_time)/60))
     elapsed_time_per_round = str(round((time()-start_time)/(start_day_shift-end_day_shift)))
-    print('Time result')
+    # print('Time result')
     P_printl('Execution time : '+elapsed_time_total+' seconds ('+elapsed_time_total_min+' min) total and '+elapsed_time_per_round+' seconds per round')
     P_printl('TR HOLD_APPLE_dict :',3)
     P_printl(HOLD_APPLE_dict)
     P_printl('TR HARVEST_APPLE_list :',3)
     P_printl(HARVEST_APPLE_list)
-    # P_printl('TR ALL_APPLE_ML_DATA :',3)
-    # P_printl(ALL_APPLE_ML_DATA)
+    P_printl('TR ALL_APPLE_ML_DATA -1:',3)
+    P_printl(ALL_APPLE_ML_DATA)
+    ALL_APPLE_ML_DATA.sort(key=lambda x: x[-2], reverse=True)
+    P_printl('TR ALL_APPLE_ML_DATA -2:',3)
+    P_printl(ALL_APPLE_ML_DATA)
+    ALL_APPLE_ML_DATA.sort(key=lambda x: x[-3], reverse=True)
+    P_printl('TR ALL_APPLE_ML_DATA -3:',3)
+    P_printl(ALL_APPLE_ML_DATA)
+    ALL_APPLE_ML_DATA.sort(key=lambda x: x[-4], reverse=True)
+    P_printl('TR ALL_APPLE_ML_DATA -4:',3)
+    P_printl(ALL_APPLE_ML_DATA)
+    ALL_APPLE_ML_DATA.sort(key=lambda x: x[-5], reverse=True)
+    P_printl('TR ALL_APPLE_ML_DATA -5:',3)
+    P_printl(ALL_APPLE_ML_DATA)
+    ALL_APPLE_ML_DATA.sort(key=lambda x: x[-6], reverse=True)
+    P_printl('TR ALL_APPLE_ML_DATA -6:',3)
+    P_printl(ALL_APPLE_ML_DATA)
+    ALL_APPLE_ML_DATA.sort(key=lambda x: x[-7], reverse=True)
+    P_printl('TR ALL_APPLE_ML_DATA -7:',3)
+    P_printl(ALL_APPLE_ML_DATA)
+    ALL_APPLE_ML_DATA.sort(key=lambda x: x[-8], reverse=True)
+    P_printl('TR ALL_APPLE_ML_DATA -8:',3)
+    P_printl(ALL_APPLE_ML_DATA)
+    P_printl('PARADISE rate = '+str(round((PARADISE-1)*100))+'%')
 
-    # '''
+    '''
     All_data = ALL_APPLE_ML_DATA
 
     np.random.shuffle(All_data)
@@ -1165,9 +1190,9 @@ def main():
     P_printl('MIN_SL_SCORE_FROM_ML_TESTING is : '+str(MIN_SL_SCORE_FROM_ML_TESTING))
     TR_error = error_sum/len(x)
     P_printl('Training error is : '+str(TR_error))
-    # '''
+    '''
     # =======================================================================================================
-    # '''
+    '''
     # VA, start at end_day_shift_TR
 
     P_printl('Enter VA mode',5)
@@ -1190,9 +1215,9 @@ def main():
     VA_ALL_APPLE_ML_DATA.sort(key=lambda x: x[-1], reverse=True)
     P_printl(VA_ALL_APPLE_ML_DATA)
 
-    # '''
+    '''
     # =======================================================================================================
-    # '''
+    '''
     #SL, date can not cross TR
 
     P_printl('Enter SL mode',5)
@@ -1212,7 +1237,7 @@ def main():
     print('Time result')
     P_printl('Execution time : '+elapsed_time_total+' seconds ('+elapsed_time_total_min+' min) total and '+elapsed_time_per_round+' seconds per round')
     P_printl('PARADISE rate = '+str(round((PARADISE-1)*100))+'%')
-    # '''
+    '''
 
 if __name__ == '__main__':
     main()
