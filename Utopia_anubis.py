@@ -594,17 +594,18 @@ def Algo1(day_shift, Mode) : # next open is defined as strictly 0900 start
                 raise Exception(apple_num+" does not touch top")
             P_printl(apple_num+" is an top apple!")
 
-            days_rise = 1
-            for n in range(1,20+1):
-                days_rise *= 1 + ((bb_mid_dict[All_apple_date[-n-day_shift]] - bb_mid_dict[All_apple_date[-20-1-day_shift]]) / bb_mid_dict[All_apple_date[-20-1-day_shift]])
+            # days_rise = 1
+            # for n in range(1,20+1):
+            #     days_rise *= 1 + ((bb_mid_dict[All_apple_date[-n-day_shift]] - bb_mid_dict[All_apple_date[-20-1-day_shift]]) / bb_mid_dict[All_apple_date[-20-1-day_shift]])
 
-            for n in range(1,5+1):
-                if apple_low_dict[All_apple_date[-n-day_shift]] > bb_top_dict[All_apple_date[-n-day_shift]]:
-                    days_rise *= 0.5
-                mid = (apple_high_dict[All_apple_date[-n-day_shift]] - apple_low_dict[All_apple_date[-n-day_shift]])/2 + apple_low_dict[All_apple_date[-n-day_shift]]
-                days_rise *= 1 - abs((mid - bb_top_dict[All_apple_date[-n-day_shift]])/bb_top_dict[All_apple_date[-n-day_shift]])
+            # for n in range(1,5+1):
+            #     if apple_low_dict[All_apple_date[-n-day_shift]] > bb_top_dict[All_apple_date[-n-day_shift]]:
+            #         days_rise *= 0.5
+            #     mid = (apple_high_dict[All_apple_date[-n-day_shift]] - apple_low_dict[All_apple_date[-n-day_shift]])/2 + apple_low_dict[All_apple_date[-n-day_shift]]
+            #     days_rise *= 1 - abs((mid - bb_top_dict[All_apple_date[-n-day_shift]])/bb_top_dict[All_apple_date[-n-day_shift]])
 
-            Top_points = round(days_rise,1)
+            # Top_points = round(days_rise,1)
+            Top_points = seeds_increase_rate_dict[apple_num] * -1
             P_printl("Top_points = "+str(Top_points)+'%')
             hold_apple_top_point_dict[apple_num+'_'+today] = Top_points
 
@@ -834,7 +835,7 @@ def Algo1(day_shift, Mode) : # next open is defined as strictly 0900 start
                 P_printl('is_high_over_top_half_block_after_1 detected')
             if is_low_higher_than_top_2_p_after_1:
                 P_printl('is_low_higher_than_top_2_p_after_1 detected')
-            if is_over_half_block_after_1 or is_low_higher_than_top_2_p_after_1:
+            if (is_over_half_block_after_1 or is_low_higher_than_top_2_p_after_1):
                 # harvest
                 P_printl('harvest '+HOLD_APPLE+' at '+today,1)
                 P_printl('harvest_apple_price = '+str(harvest_apple_price),1)
@@ -867,8 +868,8 @@ def Algo1(day_shift, Mode) : # next open is defined as strictly 0900 start
             
         #@ grow all top apple not just the highest top point
         #@ SL mode will not grow all but just the top predicted
-        if len(top_result_list) == 0:
-            P_printl('Do nothing when no top',3)
+        if len(top_result_list) == 0 or len(low_result_list) > 35:
+            P_printl('Do nothing when no top or too much low apple',3)
         else:
             # for top_result in top_result_list:
             #     apple_num = top_result[0]
@@ -1112,29 +1113,18 @@ def main():
     P_printl(HOLD_APPLE_dict)
     P_printl('TR HARVEST_APPLE_list :',3)
     P_printl(HARVEST_APPLE_list)
-    P_printl('TR ALL_APPLE_ML_DATA -1:',3)
+    P_printl('TR ALL_APPLE_ML_DATA rank:',3)
     P_printl(ALL_APPLE_ML_DATA)
-    ALL_APPLE_ML_DATA.sort(key=lambda x: x[-2], reverse=True)
-    P_printl('TR ALL_APPLE_ML_DATA -2:',3)
-    P_printl(ALL_APPLE_ML_DATA)
-    ALL_APPLE_ML_DATA.sort(key=lambda x: x[-3], reverse=True)
-    P_printl('TR ALL_APPLE_ML_DATA -3:',3)
-    P_printl(ALL_APPLE_ML_DATA)
-    ALL_APPLE_ML_DATA.sort(key=lambda x: x[-4], reverse=True)
-    P_printl('TR ALL_APPLE_ML_DATA -4:',3)
-    P_printl(ALL_APPLE_ML_DATA)
-    ALL_APPLE_ML_DATA.sort(key=lambda x: x[-5], reverse=True)
-    P_printl('TR ALL_APPLE_ML_DATA -5:',3)
-    P_printl(ALL_APPLE_ML_DATA)
-    ALL_APPLE_ML_DATA.sort(key=lambda x: x[-6], reverse=True)
-    P_printl('TR ALL_APPLE_ML_DATA -6:',3)
-    P_printl(ALL_APPLE_ML_DATA)
-    ALL_APPLE_ML_DATA.sort(key=lambda x: x[-7], reverse=True)
-    P_printl('TR ALL_APPLE_ML_DATA -7:',3)
-    P_printl(ALL_APPLE_ML_DATA)
-    ALL_APPLE_ML_DATA.sort(key=lambda x: x[-8], reverse=True)
-    P_printl('TR ALL_APPLE_ML_DATA -8:',3)
-    P_printl(ALL_APPLE_ML_DATA)
+
+    for i in range(0,len(ALL_APPLE_ML_DATA)-1):
+        ALL_APPLE_ML_DATA.sort(key=lambda x: x[i], reverse=True)
+        globals()['a'+str(i)] = [[a[i],a[-1]] for a in ALL_APPLE_ML_DATA]
+    
+    P_printl('TR ALL_APPLE_ML_DATA compare:',3)
+    print([(a0[0],a0[-1]),(a[1],a[-1]),(a[2],a[-1]),(a[3],a[-1]),\
+            (a[4],a[-1]),(a[5],a[-1]),(a[6],a[-1])])
+    
+
     P_printl('PARADISE rate = '+str(round((PARADISE-1)*100))+'%')
 
     '''
