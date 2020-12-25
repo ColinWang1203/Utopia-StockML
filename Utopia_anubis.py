@@ -142,6 +142,8 @@ model = RandomForestRegressor(n_estimators=5005)
 TR_VA_rate = 0.8
 VA_Predict_dict = {}
 VA_Predict_output = {}
+TR_GROW_LOW_THSH = 0.1
+paradise_per_grow_list = []
 
 def Algo1(day_shift, Mode) : # next open is defined as strictly 0900 start
 # note : in reality, the operation is delayed a day, so follow it at next open
@@ -216,6 +218,7 @@ def Algo1(day_shift, Mode) : # next open is defined as strictly 0900 start
     global end_day_shift
     global model
     global MIN_SL_SCORE_FROM_ML_TESTING
+    global paradise_per_grow_list
 
     is_TR_mode = False
     is_VA_mode = False
@@ -659,14 +662,14 @@ def Algo1(day_shift, Mode) : # next open is defined as strictly 0900 start
 
     # Rank the result by their points
     top_result_list = sorted(top_apple_dict.items(), key=lambda x: x[1], reverse=True)
-    P_printl("Apple tops are ("+ str(len(top_result_list)) +") :",1)
+    P_printl(today+" Apple tops are ("+ str(len(top_result_list)) +") :",1)
     P_printl(top_result_list)
 
     mid_result_list = sorted(mid_apple_dict.items(), key=lambda x: x[1], reverse=True)
-    P_printl("Apple mids are ("+ str(len(mid_result_list)) +") :",1)
+    P_printl(today+" Apple mids are ("+ str(len(mid_result_list)) +") :",1)
 
     low_result_list = sorted(low_apple_dict.items(), key=lambda x: x[1], reverse=True)
-    P_printl("Apple lows are ("+ str(len(low_result_list)) +") :",1)
+    P_printl(today+" Apple lows are ("+ str(len(low_result_list)) +") :",1)
 
     RESULT_LEN_LIST = [len(top_result_list), len(mid_result_list), len(low_result_list)]
     P_printl('RESULT_LEN_LIST = '+str(RESULT_LEN_LIST))
@@ -849,6 +852,14 @@ def Algo1(day_shift, Mode) : # next open is defined as strictly 0900 start
                                             HOLD_APPLE_dict[apple_num_hold_apple_date][6], HOLD_APPLE_dict[apple_num_hold_apple_date][7],
                                             HOLD_APPLE_dict[apple_num_hold_apple_date][8], HOLD_APPLE_dict[apple_num_hold_apple_date][9], 
                                             HOLD_APPLE_dict[apple_num_hold_apple_date][10], AVG_diff])
+                
+                # only do this when grow single
+                All_price_diff = [a[4] for a in HARVEST_APPLE_list]
+                paradise_per_grow = round(sum(All_price_diff)/(len(All_price_diff)),1)
+                P_printl('PARADISE rate per grow = '+str(paradise_per_grow)+'%')
+                #save date by number to show the real time length
+                paradise_per_grow_list.append([int(today),paradise_per_grow])
+                
                 # print('colin4')
                 # print(HOLD_APPLE)
                 # print(today)
@@ -868,9 +879,10 @@ def Algo1(day_shift, Mode) : # next open is defined as strictly 0900 start
             
         #@ grow all top apple not just the highest top point
         #@ SL mode will not grow all but just the top predicted
-        if len(top_result_list) == 0 or len(low_result_list) > 35:
+        if len(top_result_list) == 0 or len(low_result_list)/available_apple_amount > TR_GROW_LOW_THSH:
             P_printl('Do nothing when no top or too much low apple',3)
         else:
+            # multi
             # for top_result in top_result_list:
             #     apple_num = top_result[0]
             #     apple_top_point = top_result[1]
@@ -884,6 +896,8 @@ def Algo1(day_shift, Mode) : # next open is defined as strictly 0900 start
             #                             available_apple_amount, juice_increase_rate_dict[apple_num], 
             #                             seeds_increase_rate_dict[apple_num], apple_top_point] 
             #     len_init_hold_apple_dict = len(HOLD_APPLE_dict[apple_num+'_'+today])
+
+            # # single
             apple_num = top_result_list[0][0]
             apple_top_point = top_result_list[0][1]
             sql_cursor_Database_squeeze_name.execute("SELECT starts FROM "+apple_num+" WHERE date LIKE "+next_date+"")
@@ -896,6 +910,8 @@ def Algo1(day_shift, Mode) : # next open is defined as strictly 0900 start
                                     available_apple_amount, juice_increase_rate_dict[apple_num], 
                                     seeds_increase_rate_dict[apple_num], apple_top_point] 
             len_init_hold_apple_dict = len(HOLD_APPLE_dict[apple_num+'_'+today])
+            
+
         P_printl('TR HOLD_APPLE_dict :',3)
         HOLD_APPLE_dict = dict(sorted(HOLD_APPLE_dict.items(), key=lambda item: item[1][0], reverse=True))
         P_printl(HOLD_APPLE_dict)
@@ -1116,16 +1132,52 @@ def main():
     P_printl('TR ALL_APPLE_ML_DATA rank:',3)
     P_printl(ALL_APPLE_ML_DATA)
 
-    for i in range(0,len(ALL_APPLE_ML_DATA)-1):
-        ALL_APPLE_ML_DATA.sort(key=lambda x: x[i], reverse=True)
-        globals()['a'+str(i)] = [[a[i],a[-1]] for a in ALL_APPLE_ML_DATA]
-    
-    P_printl('TR ALL_APPLE_ML_DATA compare:',3)
-    print([(a0[0],a0[-1]),(a[1],a[-1]),(a[2],a[-1]),(a[3],a[-1]),\
-            (a[4],a[-1]),(a[5],a[-1]),(a[6],a[-1])])
-    
 
-    P_printl('PARADISE rate = '+str(round((PARADISE-1)*100))+'%')
+    # only do this when do multi
+    # plot the relationship
+    ALL=[]
+    shutil.rmtree('Figs') 
+    os.makedirs('Figs')
+
+    #draw the paradise_per_grow_list
+    plt.figure(dpi=200)
+    title='paradise_per_grow_list'
+    plt.plot([a[0] for a in paradise_per_grow_list], [a[1] for a in paradise_per_grow_list]\
+                ,label='Apple',color=color_blue, linestyle='-')
+    plt.grid()
+    plt.xticks(rotation=30)
+    plt.title(title,fontsize=20)
+    plt.savefig('Figs/'+title+'.png')
+
+    title_index=['top','mid','low','avail','juice','seeds','point']
+    
+    for i in range(0,len(ALL_APPLE_ML_DATA[0])-1):
+        ALL_APPLE_ML_DATA.sort(key=lambda x: x[i], reverse=True)
+        ALL.append([[a[i],a[-1]] for a in ALL_APPLE_ML_DATA])
+
+    for i in range(0,len(ALL_APPLE_ML_DATA[0])-1):
+        plt.figure(dpi=200) # change the dpi before plotting to make it bigger, original 100
+        # plot apple
+        # plt.plot([a[0] for a in ALL[i]], [a[1] for a in ALL[i]]\
+        #         ,label='Apple',color=color_blue, linestyle='-')
+        plt.bar([a[0] for a in ALL[i]], [a[1] for a in ALL[i]])
+        print(title_index[i])
+        print([a[0] for a in ALL[i]])
+        print('AVG_DIFF')
+        print([a[1] for a in ALL[i]])
+        plt.grid()
+        plt.tick_params(axis='y', which='both', labelleft='on', labelright='on')
+        title = '('+str(i)+')_'+title_index[i]+'_paradise'
+        plt.title(title,fontsize=20)
+        plt.savefig('Figs/'+title+'.png')
+        # mngr = plt.get_current_fig_manager()
+        # geom = mngr.window.geometry()
+        # x,y,dx,dy = geom.getRect()
+        # mngr.window.setGeometry(0,0,dx,dy)
+        # plt.show(block=False)
+        # plt.waitforbuttonpress()
+    
+    
 
     '''
     All_data = ALL_APPLE_ML_DATA

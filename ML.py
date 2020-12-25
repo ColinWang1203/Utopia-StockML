@@ -190,7 +190,14 @@ All_data = [
 ,[20, 197, 189, 406, 21.9, 68, 4.0, -17.3]
 ,[118, 330, 1, 449, 3.7, 51, 21.8, -22.5]
 ]
+PARADISE=1
+All_avg_diff = [a[7] for a in All_data]
+for aa in All_avg_diff:
+    PARADISE *= 1+(aa/100)
+P_printl('PARADISE rate per day = '+str(round((PARADISE-1)*100/(len(All_avg_diff))))+'%')
 
+
+P()
 
 # remove this afterward
 # All_data = [[a for a in b[0:7]] for b in All_data]
