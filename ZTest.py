@@ -1,17 +1,5 @@
 from Utopia_tools import *
-color_blue = '#1f77b4'
 
-paradise_per_grow_list=[[20191021,1],[20191023,2],[20191127,3]]
-plt.figure(dpi=200)
-title='paradise_per_grow_list'
-plt.plot([a[0] for a in paradise_per_grow_list], [a[1] for a in paradise_per_grow_list]\
-            ,label='Apple',color=color_blue, linestyle='-')
-plt.grid()
-plt.xticks(rotation=30)
-plt.title(title,fontsize=20)
-plt.savefig('Figs/'+title+'.png')
-
-P()
 
 
 
@@ -11559,39 +11547,50 @@ for i in range(0,len(ALL_APPLE_ML_DATA[0])-1):
     ALL.append([[a[i],a[-1]] for a in ALL_APPLE_ML_DATA])
 
 # need to accumulate by range
-accu_meter = 2
-accu_list = []
-for i in range(-100,99):
-    accu=0
-    c=0
-    for a in ALL_APPLE_ML_DATA:
-        if (i+2) > a[6] > i:
-            accu += a[7]
-            c+=1
-    if c == 0:
-        c=1
+ALL_accu_list = []
+max_data_list = []
+min_data_list = []
+len_data = len(ALL[0])
+for APPLE_ML_DATA in ALL:
+    data_list = [a[0] for a in APPLE_ML_DATA]
+    # save the 80% limit +- 10% discard
+    
+    print(len_data)
+    print(data_list)
+    max_data_list.append(data_list[round(len_data*0.01)])
+    min_data_list.append(data_list[round(len_data*0.99)])
+    max_data = round(max(data_list))
+    min_data = round(min(data_list))
+    print(max_data_list)
+    print(min_data_list)
+    print(i)
+    tick = max(round((max_data - min_data)/100),1)
+    accu_list = []
+    for i in range(min_data, max_data - tick,tick):
         accu=0
-    accu_list.append([i+1,accu/c])
-print('aaaaaaaaaaaaaaaaa')
-print(accu_list)
-print('aaaaaaaaaaaaaaaaa')
-ALL[6] = accu_list
+        c=0
+        for a in APPLE_ML_DATA:
+            if (i+tick) >= a[0] >= i:
+                accu += a[1]
+                c+=1
+        if c == 0:
+            accu_list.append([i+round(tick/2),0])
+        else:
+            accu_list.append([i+1,accu/c])
+    ALL_accu_list.append(accu_list)
 
 for i in range(0,len(ALL_APPLE_ML_DATA[0])-1):
-    if i != 6:
-        continue
     plt.figure(dpi=200) # change the dpi before plotting to make it bigger, original 100
     # plot apple
     # plt.plot([a[0] for a in ALL[i]], [a[1] for a in ALL[i]]\
     #         ,label='Apple',color=color_blue, linestyle='-')
-    plt.bar([a[0] for a in ALL[i]], [a[1] for a in ALL[i]])
-    if i == 6:
-        plt.xlim(-100,100)
-    print(title_index[i])
-    print([a[0] for a in ALL[i]])
-    print('AVG_DIFF')
-    print([a[1] for a in ALL[i]])
+    # print('aaaaaaaaaaaaaaaaaaaaaaaaaaaaa')
+    # print(ALL_accu_list[i])
+    # print('aaaaaaaaaaaaaaaaaaaaaaaaaaaaa')
+
+    plt.bar([a[0] for a in ALL_accu_list[i]], [a[1] for a in ALL_accu_list[i]])
     plt.grid()
+    plt.xlim(min_data_list[i], max_data_list[i])
     plt.tick_params(axis='y', which='both', labelleft='on', labelright='on')
     title = '('+str(i)+')_'+title_index[i]+'_paradise'
     plt.title(title,fontsize=20)

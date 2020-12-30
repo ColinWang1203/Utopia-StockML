@@ -1,6 +1,6 @@
 from Utopia_tools import *
 
-#@ show training error
+#@ seeds to just small big, juice to just this month and year ago month
 
 P_enable_logging()
 #@ find max paradise apples and analyze
@@ -597,6 +597,7 @@ def Algo1(day_shift, Mode) : # next open is defined as strictly 0900 start
                 raise Exception(apple_num+" does not touch top")
             P_printl(apple_num+" is an top apple!")
 
+            # top point way
             # days_rise = 1
             # for n in range(1,20+1):
             #     days_rise *= 1 + ((bb_mid_dict[All_apple_date[-n-day_shift]] - bb_mid_dict[All_apple_date[-20-1-day_shift]]) / bb_mid_dict[All_apple_date[-20-1-day_shift]])
@@ -604,11 +605,23 @@ def Algo1(day_shift, Mode) : # next open is defined as strictly 0900 start
             # for n in range(1,5+1):
             #     if apple_low_dict[All_apple_date[-n-day_shift]] > bb_top_dict[All_apple_date[-n-day_shift]]:
             #         days_rise *= 0.5
-            #     mid = (apple_high_dict[All_apple_date[-n-day_shift]] - apple_low_dict[All_apple_date[-n-day_shift]])/2 + apple_low_dict[All_apple_date[-n-day_shift]]
-            #     days_rise *= 1 - abs((mid - bb_top_dict[All_apple_date[-n-day_shift]])/bb_top_dict[All_apple_date[-n-day_shift]])
+            #     # mid = (apple_high_dict[All_apple_date[-n-day_shift]] - apple_low_dict[All_apple_date[-n-day_shift]])/2 + apple_low_dict[All_apple_date[-n-day_shift]]
+            #     # days_rise *= 1 - abs((mid - bb_top_dict[All_apple_date[-n-day_shift]])/bb_top_dict[All_apple_date[-n-day_shift]])
 
+            # if abs(seeds_increase_rate_dict[apple_num] - 80) < 40:
+            #     days_rise *= 2
+            # if abs(juice_increase_rate_dict[apple_num] - 20) < 20:
+            #     days_rise *= 2
             # Top_points = round(days_rise,1)
+
+            # seeds way
+
             Top_points = seeds_increase_rate_dict[apple_num] * -1
+
+            # seeds juice way
+
+            # Top_points = 100 - (abs(seeds_increase_rate_dict[apple_num] - 80) + abs(juice_increase_rate_dict[apple_num] - 20)*3)
+
             P_printl("Top_points = "+str(Top_points)+'%')
             hold_apple_top_point_dict[apple_num+'_'+today] = Top_points
 
@@ -824,21 +837,22 @@ def Algo1(day_shift, Mode) : # next open is defined as strictly 0900 start
                 pop_apple_num_date.append(apple_num_hold_apple_date)
                 continue
 
+            grow_length_thresh = 2
             grow_length = All_apple_date.index(today) - All_apple_date.index(grow_date)
             is_high_over_top_half_block = All_good_apple_price_bb_dict[HOLD_APPLE]['high'][today] - All_good_apple_price_bb_dict[HOLD_APPLE]['bb_top'][today] > half_block[HOLD_APPLE]            
-            is_high_over_top_half_block_after_1 = is_high_over_top_half_block and grow_length >= 1
+            is_high_over_top_half_block_after_n = is_high_over_top_half_block and grow_length >= grow_length_thresh
             is_low_higher_than_top_2_p = (All_good_apple_price_bb_dict[HOLD_APPLE]['low'][today] - All_good_apple_price_bb_dict[HOLD_APPLE]['bb_top'][today])/All_good_apple_price_bb_dict[HOLD_APPLE]['bb_top'][today] > 0.02
-            is_low_higher_than_top_2_p_after_1 = is_low_higher_than_top_2_p and grow_length >= 1
+            is_low_higher_than_top_2_p_after_n = is_low_higher_than_top_2_p and grow_length >= grow_length_thresh
             is_over_half_block = All_good_apple_price_bb_dict[HOLD_APPLE]['bb_top'][today] - All_good_apple_price_bb_dict[HOLD_APPLE]['high'][today] > half_block[HOLD_APPLE]
-            is_over_half_block_after_1 = grow_length >= 1 and is_over_half_block
+            is_over_half_block_after_n = grow_length >= grow_length_thresh and is_over_half_block
 
-            if is_over_half_block_after_1:
-                P_printl('is_over_half_block_after_1 detected')
-            if is_high_over_top_half_block_after_1:
-                P_printl('is_high_over_top_half_block_after_1 detected')
-            if is_low_higher_than_top_2_p_after_1:
-                P_printl('is_low_higher_than_top_2_p_after_1 detected')
-            if (is_over_half_block_after_1 or is_low_higher_than_top_2_p_after_1):
+            if is_over_half_block_after_n:
+                P_printl('is_over_half_block_after_n detected')
+            if is_high_over_top_half_block_after_n:
+                P_printl('is_high_over_top_half_block_after_n detected')
+            if is_low_higher_than_top_2_p_after_n:
+                P_printl('is_low_higher_than_top_2_p_after_n detected')
+            if (is_over_half_block_after_n or is_low_higher_than_top_2_p_after_n):
                 # harvest
                 P_printl('harvest '+HOLD_APPLE+' at '+today,1)
                 P_printl('harvest_apple_price = '+str(harvest_apple_price),1)
@@ -1155,17 +1169,41 @@ def main():
         ALL_APPLE_ML_DATA.sort(key=lambda x: x[i], reverse=True)
         ALL.append([[a[i],a[-1]] for a in ALL_APPLE_ML_DATA])
 
+    # need to accumulate by range
+    ALL_accu_list = []
+    max_data_list = []
+    min_data_list = []
+    len_data = len(ALL[0])
+    for APPLE_ML_DATA in ALL:
+        data_list = [a[0] for a in APPLE_ML_DATA]
+        # save the 80% limit +- 10% discard
+        max_data_list.append(data_list[round(len_data*0.01)])
+        min_data_list.append(data_list[round(len_data*0.99)])
+        max_data = round(max(data_list))
+        min_data = round(min(data_list))
+        tick = max(round((max_data - min_data)/100),1)
+        accu_list = []
+        for i in range(min_data, max_data - tick,tick):
+            accu=0
+            c=0
+            for a in APPLE_ML_DATA:
+                if (i+tick) >= a[0] >= i:
+                    accu += a[1]
+                    c+=1
+            if c == 0:
+                accu_list.append([i+round(tick/2),0])
+            else:
+                accu_list.append([i+1,accu/c])
+        ALL_accu_list.append(accu_list)
+
     for i in range(0,len(ALL_APPLE_ML_DATA[0])-1):
         plt.figure(dpi=200) # change the dpi before plotting to make it bigger, original 100
         # plot apple
         # plt.plot([a[0] for a in ALL[i]], [a[1] for a in ALL[i]]\
         #         ,label='Apple',color=color_blue, linestyle='-')
-        plt.bar([a[0] for a in ALL[i]], [a[1] for a in ALL[i]])
-        print(title_index[i])
-        print([a[0] for a in ALL[i]])
-        print('AVG_DIFF')
-        print([a[1] for a in ALL[i]])
+        plt.bar([a[0] for a in ALL_accu_list[i]], [a[1] for a in ALL_accu_list[i]])
         plt.grid()
+        plt.xlim(min_data_list[i], max_data_list[i])
         plt.tick_params(axis='y', which='both', labelleft='on', labelright='on')
         title = '('+str(i)+')_'+title_index[i]+'_paradise'
         plt.title(title,fontsize=20)
