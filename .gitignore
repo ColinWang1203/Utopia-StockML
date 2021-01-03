@@ -1,0 +1,7 @@
+Figs/*
+Apples/*
+Seeds/*
+*.log
+*.sqlite
+*.txt
+!requirements.txt

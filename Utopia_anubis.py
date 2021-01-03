@@ -142,8 +142,9 @@ model = RandomForestRegressor(n_estimators=5005)
 TR_VA_rate = 0.8
 VA_Predict_dict = {}
 VA_Predict_output = {}
-TR_GROW_LOW_THSH = 0.1
+TR_GROW_LOW_THSH = 0.05
 paradise_per_grow_list = []
+
 
 def Algo1(day_shift, Mode) : # next open is defined as strictly 0900 start
 # note : in reality, the operation is delayed a day, so follow it at next open
@@ -266,13 +267,16 @@ def Algo1(day_shift, Mode) : # next open is defined as strictly 0900 start
     month_shift += 1
     Year_juice_date = []
     # list of year, max to 2 year
-    for i in list(range(0,2)):
-        if i == 0 and month_shift == 0:
-            Year_juice_date.append(All_juice_date[-12:])
-        else:
-            Year_juice_date.append(All_juice_date[-(12+(12*i))-month_shift:-(12*i)-month_shift])
-    Year_juice_date.reverse()
-    P_printl(Year_juice_date)
+    # for i in list(range(0,2)):
+    #     if i == 0 and month_shift == 0:
+    #         Year_juice_date.append(All_juice_date[-12:])
+    #     else:
+    #         Year_juice_date.append(All_juice_date[-(12+(12*i))-month_shift:-(12*i)-month_shift])
+    # Year_juice_date.reverse()
+    # P_printl(Year_juice_date)
+
+    # change Year_juice_date to simply dates list
+    Year_juice_date = All_juice_date[-1:-24:-1]
 
     for apple_num in sql_tables_Database_squeeze_name:
         apple_num = "".join(apple_num)
@@ -372,20 +376,23 @@ def Algo1(day_shift, Mode) : # next open is defined as strictly 0900 start
             continue
 
         # filter out any apple not available in 2 year juice
-        try:
-            for dates in Year_juice_date:
-                for date in dates:
-                    sql_cursor_Database_juice_name.execute("SELECT current FROM "+apple_num+" WHERE date LIKE "+date+"")
-                    juice_data = sql_cursor_Database_juice_name.fetchall()[0][0]
-        except Exception as e:
-            print(e)
-            print(apple_num+" is a apple with not enough two year juice, ignoring...")
-            continue   
+        # try:
+        #     for date in Year_juice_date:
+        #         sql_cursor_Database_juice_name.execute("SELECT current FROM "+apple_num+" WHERE date LIKE "+date+"")
+        #         juice_data = sql_cursor_Database_juice_name.fetchall()[0][0]
+        # except Exception as e:
+        #     print(e)
+        #     print(apple_num+" is a apple with not enough five year juice, ignoring...")
+        #     continue   
         
         # filter out seeds not available in shifted today for a month
         found_14_close_seed_flag = False
-        sql_cursor_Database_seeds_name.execute("SELECT * FROM "+apple_num+"")
-        sql_seeds = sql_cursor_Database_seeds_name.fetchall()
+        try:
+            sql_cursor_Database_seeds_name.execute("SELECT * FROM "+apple_num+"")
+            sql_seeds = sql_cursor_Database_seeds_name.fetchall()
+        except:
+            P_printl('No seeds for '+apple_num)
+            continue
         All_seeds_date_apple = [i[0] for i in sql_seeds]
         seeds_date_shift = 0
         for date in All_seeds_date_apple[::-1]:
@@ -527,56 +534,75 @@ def Algo1(day_shift, Mode) : # next open is defined as strictly 0900 start
         #calculate juice just for the grow one
         print('juice '+apple_num)
         juice_dict = {}
-        for dates in Year_juice_date:
-            dates_str = dates[0]+'~'+dates[-1]
-            juice_data_accu = 0
-            for date in dates:
-                sql_cursor_Database_juice_name.execute("SELECT current FROM "+apple_num+" WHERE date LIKE "+date+"")
-                juice_data = sql_cursor_Database_juice_name.fetchall()[0][0]
-                juice_data_accu += juice_data
-            juice_dict[dates_str] = juice_data_accu
-        this_year_juice = juice_dict[list(juice_dict)[-1]]
-        second_year_juice = juice_dict[list(juice_dict)[-2]]
-        juice_increase_rate = ((this_year_juice - second_year_juice)/ second_year_juice) * 100
-        P_printl("juice_increase_rate ori = "+str(juice_increase_rate))
-        # juice_increase_rate = pow(juice_increase_rate, juice_pow)
-        juice_increase_rate = round(max(min(juice_increase_rate,juice_rate_max),juice_rate_min),1)
-        juice_increase_rate_dict[apple_num] = juice_increase_rate
-        P_printl("juice_increase_rate = "+str(juice_increase_rate))
 
+        # 1. juice round compare way
+        # for dates in Year_juice_date:
+        #     dates_str = dates[0]+'~'+dates[-1]
+        #     juice_data_accu = 0
+        #     for date in dates:
+        #         sql_cursor_Database_juice_name.execute("SELECT current FROM "+apple_num+" WHERE date LIKE "+date+"")
+        #         juice_data = sql_cursor_Database_juice_name.fetchall()[0][0]
+        #         juice_data_accu += juice_data
+        #     juice_dict[dates_str] = juice_data_accu
+        # this_year_juice = juice_dict[list(juice_dict)[-1]]
+        # second_year_juice = juice_dict[list(juice_dict)[-2]]
+        # juice_increase_rate = ((this_year_juice - second_year_juice)/ second_year_juice) * 100
+        # P_printl("juice_increase_rate ori = "+str(juice_increase_rate))
+        # juice_increase_rate = pow(juice_increase_rate, juice_pow)
+        # juice_increase_rate = round(max(min(juice_increase_rate,juice_rate_max),juice_rate_min),1)
+        # juice_increase_rate_dict[apple_num] = juice_increase_rate
+
+        # 2. find juice max and second in 2 year juice then increase rate = (1 + (max-second)/second)*100
+        #    note: /100 at top point
+        # is_max_juice = True
+        # year_juice_dict = {}
+        # # print(Year_juice_date)
+        # for date in Year_juice_date:
+        #     sql_cursor_Database_juice_name.execute("SELECT current FROM "+apple_num+" WHERE date LIKE "+date+"")
+        #     juice_data = sql_cursor_Database_juice_name.fetchall()[0][0]
+        #     year_juice_dict[date] = juice_data
+        # sec_juice = (list(sorted(year_juice_dict.values()))[-2])
+        # juice_latest = year_juice_dict[Year_juice_date[0]]
+        # increase_by_sec_juice = 1+(juice_latest - sec_juice)/sec_juice
+        # juice_increase_rate_dict[apple_num] = round(increase_by_sec_juice,2)
+        juice_increase_rate_dict[apple_num] = 0
+        
         # calculate seeds growth rate for a month 
         print('seeds '+apple_num)
         sql_cursor_Database_seeds_name.execute("SELECT * FROM "+apple_num+"")
         sql_seeds = sql_cursor_Database_seeds_name.fetchall()
         seeds_month_growth = 1
-        for seeds_date_month_shift in range(0,5):
-            seeds_first_data = sql_seeds[-1-seeds_date_shift-seeds_date_month_shift]
-            seeds_second_data = sql_seeds[-1-seeds_date_shift-4-1]
-            # print(seeds_first_data)
-            # print(seeds_second_data)
-            small_seeds_first = 0
-            big_seeds_first = 0
-            small_seeds_second = 0
-            big_seeds_second = 0
-            for i in list(range(1,16)):
-                if i < 10:
-                    small_seeds_first += seeds_first_data[i]
-                    small_seeds_second += seeds_second_data[i]
-                else:
-                    big_seeds_first += seeds_first_data[i]
-                    big_seeds_second += seeds_second_data[i]
-            # print(small_seeds_first)
-            # print(big_seeds_first)
-            # print(small_seeds_second)
-            # print(big_seeds_second)
-            seeds_ratio_first = big_seeds_first/small_seeds_first
-            seeds_ratio_second = big_seeds_second/small_seeds_second
-            seeds_first_second_ratio = 1 + ((seeds_ratio_first - seeds_ratio_second) / seeds_ratio_second)
-            seeds_month_growth *= seeds_first_second_ratio
-            # print(seeds_ratio_first)
-            # print(seeds_ratio_second)
-            # print(seeds_first_second_ratio)
-        seeds_increase_rate_dict[apple_num] = round((seeds_month_growth-1) * 100)
+        # 1. seeds increase way
+        seeds_first_data = sql_seeds[-1-seeds_date_shift]
+        seeds_second_data = sql_seeds[-1-seeds_date_shift-1]
+        # print(seeds_first_data)
+        # print(seeds_second_data)
+        small_seeds_first = 0
+        big_seeds_first = 0
+        small_seeds_second = 0
+        big_seeds_second = 0
+        for i in list(range(1,16)):
+            if i < 10:
+                small_seeds_first += seeds_first_data[i]
+                small_seeds_second += seeds_second_data[i]
+            else:
+                big_seeds_first += seeds_first_data[i]
+                big_seeds_second += seeds_second_data[i]
+        
+        # seeds_ratio_first = big_seeds_first/small_seeds_first
+        # seeds_ratio_second = big_seeds_second/small_seeds_second
+        seeds_ratio_first = small_seeds_first/big_seeds_first
+        seeds_ratio_second = small_seeds_second/big_seeds_second
+        seeds_month_growth = (seeds_ratio_first - seeds_ratio_second) / seeds_ratio_second
+
+        seeds_increase_rate_dict[apple_num] = round(seeds_month_growth*100)
+
+        # 2. change to just current big
+        # seeds_data = sql_seeds[-1-seeds_date_shift]
+        # big_seeds = sum(seeds_data[10:16])
+        # small_seeds = sum(seeds_data[1:10])
+        # seeds_ratio = big_seeds/(big_seeds+small_seeds)
+        # seeds_increase_rate_dict[apple_num] = round(big_seeds)
 
         #========================================================
         #                      Top Algo
@@ -615,9 +641,9 @@ def Algo1(day_shift, Mode) : # next open is defined as strictly 0900 start
             # Top_points = round(days_rise,1)
 
             # seeds way
-
-            Top_points = seeds_increase_rate_dict[apple_num] * -1
-
+            
+            Top_points = round(seeds_increase_rate_dict[apple_num])
+            
             # seeds juice way
 
             # Top_points = 100 - (abs(seeds_increase_rate_dict[apple_num] - 80) + abs(juice_increase_rate_dict[apple_num] - 20)*3)
@@ -871,6 +897,7 @@ def Algo1(day_shift, Mode) : # next open is defined as strictly 0900 start
                 All_price_diff = [a[4] for a in HARVEST_APPLE_list]
                 paradise_per_grow = round(sum(All_price_diff)/(len(All_price_diff)),1)
                 P_printl('PARADISE rate per grow = '+str(paradise_per_grow)+'%')
+                P_printl('PARADISE total = '+str(round((PARADISE-1)*100))+'%')
                 #save date by number to show the real time length
                 paradise_per_grow_list.append([int(today),paradise_per_grow])
                 
@@ -890,12 +917,12 @@ def Algo1(day_shift, Mode) : # next open is defined as strictly 0900 start
         for apple_num_date in pop_apple_num_date:
             P_printl(str(HOLD_APPLE_dict[apple_num_date])+' is poped')
             HOLD_APPLE_dict.pop(apple_num_date)
-            
+        
         #@ grow all top apple not just the highest top point
         #@ SL mode will not grow all but just the top predicted
-        if len(top_result_list) == 0 or len(low_result_list)/available_apple_amount > TR_GROW_LOW_THSH:
-            P_printl('Do nothing when no top or too much low apple',3)
-        else:
+        if len(top_result_list) == 0 or len(low_result_list) > 35 or 75<len(top_result_list)<150:
+            P_printl('Do nothing when no top or too much low apple or middle top apple',3)
+        else :
             # multi
             # for top_result in top_result_list:
             #     apple_num = top_result[0]
@@ -1175,27 +1202,33 @@ def main():
     min_data_list = []
     len_data = len(ALL[0])
     for APPLE_ML_DATA in ALL:
-        data_list = [a[0] for a in APPLE_ML_DATA]
-        # save the 80% limit +- 10% discard
-        max_data_list.append(data_list[round(len_data*0.01)])
-        min_data_list.append(data_list[round(len_data*0.99)])
-        max_data = round(max(data_list))
-        min_data = round(min(data_list))
-        tick = max(round((max_data - min_data)/100),1)
-        accu_list = []
-        for i in range(min_data, max_data - tick,tick):
-            accu=0
-            c=0
-            for a in APPLE_ML_DATA:
-                if (i+tick) >= a[0] >= i:
-                    accu += a[1]
-                    c+=1
-            if c == 0:
-                accu_list.append([i+round(tick/2),0])
-            else:
-                accu_list.append([i+1,accu/c])
-        ALL_accu_list.append(accu_list)
-
+        print('colin debug 777')
+        print(APPLE_ML_DATA)
+        try:
+            data_list = [a[0] for a in APPLE_ML_DATA]
+            print(data_list)
+            # save the 80% limit +- 10% discard
+            max_data_list.append(data_list[round(len_data*0.01)])
+            min_data_list.append(data_list[round(len_data*0.99)])
+            max_data = round(max(data_list))
+            min_data = round(min(data_list))
+            tick = max(round((max_data - min_data)/100),1)
+            accu_list = []
+            for i in range(min_data, max_data - tick,tick):
+                accu=0
+                c=0
+                for a in APPLE_ML_DATA:
+                    if (i+tick) >= a[0] >= i:
+                        accu += a[1]
+                        c+=1
+                if c == 0:
+                    accu_list.append([i+round(tick/2),0])
+                else:
+                    accu_list.append([i+1,accu/c])
+            ALL_accu_list.append(accu_list)
+        except:
+            P_printl('caugth error in APPLE_ML_DATA')
+    
     for i in range(0,len(ALL_APPLE_ML_DATA[0])-1):
         plt.figure(dpi=200) # change the dpi before plotting to make it bigger, original 100
         # plot apple
