@@ -144,6 +144,7 @@ VA_Predict_dict = {}
 VA_Predict_output = {}
 TR_GROW_LOW_THSH = 0.05
 paradise_per_grow_list = []
+paradise_per_grow_list_half_year = []
 
 
 def Algo1(day_shift, Mode) : # next open is defined as strictly 0900 start
@@ -1182,6 +1183,8 @@ def main():
 
     #draw the paradise_per_grow_list
     plt.figure(dpi=200)
+    P_printl('TR paradise_per_grow_list rank:',3)
+    P_printl(paradise_per_grow_list)
     title='paradise_per_grow_list'
     plt.plot([a[0] for a in paradise_per_grow_list], [a[1] for a in paradise_per_grow_list]\
                 ,label='Apple',color=color_blue, linestyle='-')
